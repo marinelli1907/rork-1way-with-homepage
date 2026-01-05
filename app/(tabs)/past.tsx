@@ -6,11 +6,11 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
-  Image,
 } from 'react-native';
 import { ChevronLeft } from 'lucide-react-native';
 import { useEvents } from '@/providers/EventsProvider';
 import { Event } from '@/types';
+import RotatingAdHeader from '@/components/RotatingAdHeader';
 
 export default function PastEventsScreen() {
   const router = useRouter();
@@ -101,11 +101,9 @@ export default function PastEventsScreen() {
           <ChevronLeft size={28} color="#1E3A8A" strokeWidth={2} />
           <Text style={styles.backText}>Calendar</Text>
         </Pressable>
-        <Image
-          source={{ uri: 'https://pub-e001eb4506b145aa938b5d3badbff6a5.r2.dev/attachments/47vdru1syrb0iukk596rl' }}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <View style={styles.adContainer}>
+          <RotatingAdHeader />
+        </View>
       </View>
 
       {pastEventsWithRides.length === 0 ? (
@@ -166,9 +164,9 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#1E3A8A',
   },
-  logo: {
-    width: 240,
-    height: 80,
+  adContainer: {
+    width: '100%',
+    paddingTop: 40,
   },
   scrollView: {
     flex: 1,
