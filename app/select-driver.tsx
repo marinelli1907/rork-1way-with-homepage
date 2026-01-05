@@ -1,6 +1,7 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { MapPin, Star, Clock, DollarSign, User, ArrowRight, CheckCircle, Users, Gavel, Zap, X } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
+
 import {
   View,
   Text,
@@ -138,6 +139,8 @@ export default function SelectDriverScreen() {
   const { hasPaymentMethods, getDefaultPaymentMethod, createPendingTransaction } = usePayment();
   const { hasUserCompletedRide, recordCouponUsage } = useCoupons();
   const params = useLocalSearchParams<{
+    closeOnAdd?: string;
+    returnTo?: string;
     eventId: string;
     eventTitle: string;
     rideType: 'arrival' | 'return';
@@ -160,8 +163,6 @@ export default function SelectDriverScreen() {
   const [generatingVehicleImages, setGeneratingVehicleImages] = useState(false);
   const [showBidModal, setShowBidModal] = useState(false);
   const [bidsReceived, setBidsReceived] = useState<{ driverId: string; bidPrice: number }[]>([]);
-  const [showPassengerModal, setShowPassengerModal] = useState(false);
-  const [pendingOption, setPendingOption] = useState<PricingOption>(null);
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
 
   const basePrice = parseFloat(params.basePrice || '0');
@@ -178,13 +179,13 @@ export default function SelectDriverScreen() {
   }, [event]);
 
 
-  const loadDrivers = useCallback(async () => {
+  const loadDrivers = useCallback(async (optionForAutoSelect?: PricingOption) => {
     setLoading(true);
     setGeneratingVehicleImages(true);
-    
+
     try {
       const sortedDrivers = [...MOCK_DRIVERS].sort((a, b) => a.distance - b.distance);
-      
+
       const driversWithImages = await Promise.all(
         sortedDrivers.map(async (driver) => {
           try {
@@ -194,45 +195,45 @@ export default function SelectDriverScreen() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ prompt, size: '1024x1024' }),
             });
-            
+
             if (!response.ok) {
               console.error(`Failed to generate image for ${driver.name}: ${response.status} ${response.statusText}`);
               return driver;
             }
-            
+
             const responseText = await response.text();
-            
+
             if (!responseText || responseText.trim() === '') {
               console.error(`Empty response for ${driver.name}`);
               return driver;
             }
-            
+
             try {
               const result = JSON.parse(responseText);
-              
+
               const maybe = result as {
                 image?: { base64Data?: string; mimeType?: string; url?: string };
                 url?: string;
               };
-              
+
               const base64Data = maybe.image?.base64Data;
               const mimeType = maybe.image?.mimeType;
               const url = maybe.image?.url ?? maybe.url;
-              
+
               if (base64Data && mimeType) {
                 return {
                   ...driver,
                   vehicleImage: `data:${mimeType};base64,${base64Data}`,
                 };
               }
-              
+
               if (url && typeof url === 'string') {
                 return {
                   ...driver,
                   vehicleImage: url,
                 };
               }
-              
+
               console.warn(`No valid image data for ${driver.name}, using driver without image`);
               return driver;
             } catch (parseError) {
@@ -246,7 +247,7 @@ export default function SelectDriverScreen() {
           }
         })
       );
-      
+
       setDrivers(driversWithImages);
 
       const quickDriverId = (params.quickDriverId ?? '').toString();
@@ -259,8 +260,9 @@ export default function SelectDriverScreen() {
         }
       }
 
-      if (selectedOption === 'app_price' && driversWithImages.length > 0) {
+      if (optionForAutoSelect === 'app_price' && driversWithImages.length > 0) {
         const nearestDriver = driversWithImages[0];
+        console.log('[select-driver] auto-select nearest driver:', nearestDriver.name);
         setSelectedDriver(nearestDriver);
       }
     } catch (error) {
@@ -278,15 +280,34 @@ export default function SelectDriverScreen() {
         }
       }
 
-      if (selectedOption === 'app_price' && sortedDrivers.length > 0) {
+      if (optionForAutoSelect === 'app_price' && sortedDrivers.length > 0) {
         const nearestDriver = sortedDrivers[0];
+        console.log('[select-driver] auto-select nearest driver (fallback):', nearestDriver.name);
         setSelectedDriver(nearestDriver);
       }
     } finally {
       setLoading(false);
       setGeneratingVehicleImages(false);
     }
-  }, [params.quickDriverId, selectedOption]);
+  }, [params.quickDriverId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (params.closeOnAdd === '1') {
+        console.log('[select-driver] returned from payment-methods: clearing closeOnAdd flag');
+        router.setParams({ closeOnAdd: undefined, returnTo: undefined });
+      }
+
+      if (!selectedOption) return;
+
+      const hasPay = hasPaymentMethods();
+      console.log('[select-driver] focus: selectedOption=', selectedOption, 'hasPaymentMethods=', hasPay);
+
+      if (hasPay) {
+        loadDrivers(selectedOption);
+      }
+    }, [hasPaymentMethods, loadDrivers, params.closeOnAdd, router, selectedOption])
+  );
 
   const handleDriverSelection = (driver: Driver) => {
     setSelectedDriver(driver);
@@ -313,7 +334,7 @@ export default function SelectDriverScreen() {
       Alert.alert('Request Sent', 'Your ride request has been sent to all available drivers. They will bid on your ride.');
     }
     
-    await loadDrivers();
+    await loadDrivers(selectedOption);
     
     setTimeout(() => {
       const mockBids = MOCK_DRIVERS.map((driver) => ({
@@ -349,7 +370,7 @@ export default function SelectDriverScreen() {
         [
           {
             text: 'Add Payment Method',
-            onPress: () => router.push('/payment-methods'),
+            onPress: () => router.push({ pathname: '/payment-methods', params: { closeOnAdd: '1', returnTo: 'select-driver' } }),
           },
           {
             text: 'Cancel',
@@ -475,20 +496,15 @@ export default function SelectDriverScreen() {
   };
 
   const handleOptionSelect = (option: PricingOption) => {
-    const hasConnections = event && event.invitedProfiles && event.invitedProfiles.length > 0;
-    if (!hasConnections && numberOfPassengers === 1) {
-      setPendingOption(option);
-      setShowPassengerModal(true);
-    } else {
-      proceedWithOption(option);
-    }
+    proceedWithOption(option);
   };
 
   const proceedWithOption = useCallback(async (option: PricingOption) => {
+    console.log('[select-driver] proceedWithOption:', option);
     setSelectedOption(option);
 
     if (option === 'app_price' || option === 'select_driver') {
-      await loadDrivers();
+      await loadDrivers(option);
     } else if (option === 'name_price' || option === 'receive_bids') {
       setShowBidModal(true);
     }
@@ -506,13 +522,7 @@ export default function SelectDriverScreen() {
     }
   }, [params.preselect, proceedWithOption, selectedOption]);
 
-  const handlePassengerConfirm = () => {
-    setShowPassengerModal(false);
-    if (pendingOption) {
-      proceedWithOption(pendingOption);
-      setPendingOption(null);
-    }
-  };
+
 
   const handleCloseModal = () => {
     Keyboard.dismiss();
@@ -984,56 +994,6 @@ export default function SelectDriverScreen() {
         </View>
       </Modal>
 
-      <Modal
-        visible={showPassengerModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowPassengerModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Number of Passengers</Text>
-            <Text style={styles.modalDescription}>
-              How many passengers will be riding? (Up to 6)
-            </Text>
-
-            <View style={styles.passengerPickerContainer}>
-              <Pressable
-                style={styles.passengerButton}
-                onPress={() => setNumberOfPassengers(Math.max(1, numberOfPassengers - 1))}
-              >
-                <Text style={styles.passengerButtonText}>-</Text>
-              </Pressable>
-              <View style={styles.passengerDisplay}>
-                <Users size={32} color="#1E3A8A" />
-                <Text style={styles.passengerCount}>{numberOfPassengers}</Text>
-                <Text style={styles.passengerLabel}>{numberOfPassengers === 1 ? 'Passenger' : 'Passengers'}</Text>
-              </View>
-              <Pressable
-                style={styles.passengerButton}
-                onPress={() => setNumberOfPassengers(Math.min(6, numberOfPassengers + 1))}
-              >
-                <Text style={styles.passengerButtonText}>+</Text>
-              </Pressable>
-            </View>
-
-            <View style={styles.modalActions}>
-              <Pressable
-                style={styles.modalCancelButton}
-                onPress={() => setShowPassengerModal(false)}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={styles.modalConfirmButton}
-                onPress={handlePassengerConfirm}
-              >
-                <Text style={styles.modalConfirmButtonText}>Continue</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }

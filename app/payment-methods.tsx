@@ -10,13 +10,14 @@ import {
   ActivityIndicator,
   Keyboard,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import BottomSheetModal from '@/components/BottomSheetModal';
 import { usePayment } from '@/providers/PaymentProvider';
 import { PaymentMethodType } from '@/types';
 
 export default function PaymentMethodsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ closeOnAdd?: string; returnTo?: string }>();
   const { paymentMethods, addPaymentMethod, removePaymentMethod, setDefaultPaymentMethod, isLoading } = usePayment();
   
   const [showAddModal, setShowAddModal] = useState(false);
@@ -89,6 +90,11 @@ export default function PaymentMethodsScreen() {
       Alert.alert('Success', 'Payment method added successfully');
       setShowAddModal(false);
       resetForm();
+
+      if (params.closeOnAdd === '1') {
+        console.log('[payment-methods] closeOnAdd=1 -> returning to previous screen');
+        router.back();
+      }
     } catch (error) {
       console.error('Failed to add payment method:', error);
       Alert.alert('Error', 'Failed to add payment method');
