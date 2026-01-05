@@ -568,7 +568,7 @@ const styles = StyleSheet.create({
     minHeight: 100,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: 4,
+    padding: 6,
     backgroundColor: '#FFFFFF',
   },
   todayCell: {
@@ -595,12 +595,13 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
   eventsContainer: {
-    gap: 2,
+    gap: 3,
+    marginTop: 2,
   },
   eventDot: {
-    paddingVertical: 2,
-    paddingHorizontal: 3,
-    borderRadius: 3,
+    paddingVertical: 3,
+    paddingHorizontal: 4,
+    borderRadius: 4,
     marginBottom: 2,
   },
   eventTime: {

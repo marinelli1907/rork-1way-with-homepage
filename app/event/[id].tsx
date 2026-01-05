@@ -20,7 +20,6 @@ import {
   Heart,
   ThumbsDown,
   Share2,
-  Plus,
   DollarSign,
   Users2,
   User,
@@ -52,7 +51,7 @@ import { CATALOG_EVENTS } from '@/constants/catalog-events';
 export default function EventDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { events, deleteEvent, userPrefs, updatePersonalSchedule, bookRide, cancelRide, saveFromCatalog, markEventInterested, markEventNotInterested, removeEventInterest, getEventInterestStatus } = useEvents();
+  const { events, deleteEvent, userPrefs, updatePersonalSchedule, cancelRide, saveFromCatalog, markEventInterested, markEventNotInterested, removeEventInterest, getEventInterestStatus } = useEvents();
   const { getProfile, myProfile, getConnectedProfiles } = useProfiles();
   const [showRideModal, setShowRideModal] = useState(false);
   const [selectedRideType, setSelectedRideType] = useState<'arrival' | 'return'>('arrival');
@@ -486,6 +485,11 @@ export default function EventDetailScreen() {
           title: 'Event Details',
           headerBackTitle: 'Back',
           headerBackVisible: true,
+          headerRight: () => (
+            <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
+              <X size={24} color="#64748B" strokeWidth={2} />
+            </Pressable>
+          ),
         }} 
       />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
