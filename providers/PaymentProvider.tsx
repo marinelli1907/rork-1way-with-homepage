@@ -13,118 +13,111 @@ export const [PaymentProvider, usePayment] = createContextHook(() => {
 
   useEffect(() => {
     let mounted = true;
-    
+
     const loadData = async () => {
+      console.log('[PaymentProvider] hydrating payment data...');
+      if (mounted) setIsLoading(true);
+
       try {
-        setIsLoading(true);
         const [methodsData, transactionsData] = await Promise.all([
           safeGetItem<PaymentMethod[]>(STORAGE_KEY_PAYMENT_METHODS),
           safeGetItem<PaymentTransaction[]>(STORAGE_KEY_TRANSACTIONS),
         ]);
 
-        if (mounted) {
-          if (methodsData && Array.isArray(methodsData)) {
-            setPaymentMethods(methodsData);
-          } else {
-            setPaymentMethods([]);
-          }
+        if (!mounted) return;
 
-          if (transactionsData && Array.isArray(transactionsData)) {
-            setTransactions(transactionsData);
-          } else {
-            setTransactions([]);
-          }
+        if (methodsData && Array.isArray(methodsData)) {
+          console.log('[PaymentProvider] loaded paymentMethods:', methodsData.length);
+          setPaymentMethods(methodsData);
+        } else {
+          console.log('[PaymentProvider] no stored paymentMethods');
+          setPaymentMethods([]);
+        }
+
+        if (transactionsData && Array.isArray(transactionsData)) {
+          console.log('[PaymentProvider] loaded transactions:', transactionsData.length);
+          setTransactions(transactionsData);
+        } else {
+          console.log('[PaymentProvider] no stored transactions');
+          setTransactions([]);
         }
       } catch (error) {
-        console.error('Failed to load payment data:', error);
+        console.error('[PaymentProvider] Failed to load payment data:', error);
       } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        if (mounted) setIsLoading(false);
       }
     };
 
     loadData();
-    
+
     return () => {
       mounted = false;
     };
   }, []);
 
   const savePaymentMethods = async (newMethods: PaymentMethod[]) => {
-    const ok = await safeSetItem(STORAGE_KEY_PAYMENT_METHODS, newMethods);
-    if (!ok) {
-      throw new Error('Failed to persist payment methods');
+    try {
+      console.log('[PaymentProvider] saving paymentMethods:', newMethods.length);
+      const ok = await safeSetItem(STORAGE_KEY_PAYMENT_METHODS, newMethods);
+      if (!ok) {
+        console.error('[PaymentProvider] safeSetItem returned false while saving payment methods');
+        return;
+      }
+      setPaymentMethods(newMethods);
+    } catch (error) {
+      console.error('[PaymentProvider] Failed to save payment methods:', error);
     }
-    setPaymentMethods(newMethods);
   };
 
   const saveTransactions = async (newTransactions: PaymentTransaction[]) => {
-    const ok = await safeSetItem(STORAGE_KEY_TRANSACTIONS, newTransactions);
-    if (!ok) {
-      throw new Error('Failed to persist payment transactions');
+    try {
+      console.log('[PaymentProvider] saving transactions:', newTransactions.length);
+      const ok = await safeSetItem(STORAGE_KEY_TRANSACTIONS, newTransactions);
+      if (!ok) {
+        console.error('[PaymentProvider] safeSetItem returned false while saving transactions');
+        return;
+      }
+      setTransactions(newTransactions);
+    } catch (error) {
+      console.error('[PaymentProvider] Failed to save transactions:', error);
     }
-    setTransactions(newTransactions);
   };
 
-  const addPaymentMethod = useCallback(
-    async (methodData: Omit<PaymentMethod, 'id' | 'createdAt' | 'userId'>) => {
-      const newMethod: PaymentMethod = {
-        ...methodData,
-        id: `pm_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
-        userId: 'user_1',
-        createdAt: new Date().toISOString(),
-      };
+  const addPaymentMethod = useCallback(async (methodData: Omit<PaymentMethod, 'id' | 'createdAt' | 'userId'>) => {
+    const newMethod: PaymentMethod = {
+      ...methodData,
+      id: `pm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      userId: 'user_1',
+      createdAt: new Date().toISOString(),
+    };
 
-      setIsLoading(true);
-      try {
-        let updatedMethods = [...paymentMethods, newMethod];
+    let updatedMethods = [...paymentMethods, newMethod];
 
-        if (newMethod.isDefault) {
-          updatedMethods = updatedMethods.map(m => ({
-            ...m,
-            isDefault: m.id === newMethod.id,
-          }));
-        }
+    if (newMethod.isDefault) {
+      updatedMethods = updatedMethods.map(m => ({
+        ...m,
+        isDefault: m.id === newMethod.id,
+      }));
+    }
 
-        await savePaymentMethods(updatedMethods);
-        console.log('[PaymentProvider] added method:', newMethod.id, newMethod.type);
-        return newMethod;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [paymentMethods]
-  );
+    console.log('[PaymentProvider] addPaymentMethod -> before:', paymentMethods.length, 'after:', updatedMethods.length);
+    await savePaymentMethods(updatedMethods);
+    console.log('[PaymentProvider] addPaymentMethod -> persisted (requested).');
+    return newMethod;
+  }, [paymentMethods]);
 
-  const removePaymentMethod = useCallback(
-    async (methodId: string) => {
-      setIsLoading(true);
-      try {
-        const updatedMethods = paymentMethods.filter(m => m.id !== methodId);
-        await savePaymentMethods(updatedMethods);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [paymentMethods]
-  );
+  const removePaymentMethod = useCallback(async (methodId: string) => {
+    const updatedMethods = paymentMethods.filter(m => m.id !== methodId);
+    await savePaymentMethods(updatedMethods);
+  }, [paymentMethods]);
 
-  const setDefaultPaymentMethod = useCallback(
-    async (methodId: string) => {
-      setIsLoading(true);
-      try {
-        const updatedMethods = paymentMethods.map(m => ({
-          ...m,
-          isDefault: m.id === methodId,
-        }));
-        await savePaymentMethods(updatedMethods);
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [paymentMethods]
-  );
+  const setDefaultPaymentMethod = useCallback(async (methodId: string) => {
+    const updatedMethods = paymentMethods.map(m => ({
+      ...m,
+      isDefault: m.id === methodId,
+    }));
+    await savePaymentMethods(updatedMethods);
+  }, [paymentMethods]);
 
   const getDefaultPaymentMethod = useCallback((): PaymentMethod | null => {
     return paymentMethods.find(m => m.isDefault) || paymentMethods[0] || null;
@@ -177,7 +170,9 @@ export const [PaymentProvider, usePayment] = createContextHook(() => {
   }, [transactions]);
 
   const hasPaymentMethods = useCallback((): boolean => {
-    return paymentMethods.length > 0;
+    const result = paymentMethods.length > 0;
+    console.log('[PaymentProvider] hasPaymentMethods ->', result, '(count=', paymentMethods.length, ')');
+    return result;
   }, [paymentMethods]);
 
   return useMemo(() => ({
