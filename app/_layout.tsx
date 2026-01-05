@@ -22,14 +22,23 @@ function RootLayoutNav() {
       <Stack.Screen name="login" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(driver)" />
-      <Stack.Screen name="create-event" options={{ presentation: "transparentModal", animation: "none" }} />
+      <Stack.Screen
+        name="create-event"
+        options={{ presentation: "transparentModal", animation: "none", gestureEnabled: false }}
+      />
       <Stack.Screen name="event/[id]" />
       <Stack.Screen name="events-nearby" />
       <Stack.Screen name="smart-demo" />
-      <Stack.Screen name="payment-methods" options={{ presentation: "transparentModal", animation: "none" }} />
+      <Stack.Screen
+        name="payment-methods"
+        options={{ presentation: "transparentModal", animation: "none", gestureEnabled: false }}
+      />
       <Stack.Screen name="manage-coupons" />
       <Stack.Screen name="work-groups" />
-      <Stack.Screen name="create-group" options={{ presentation: "transparentModal", animation: "none" }} />
+      <Stack.Screen
+        name="create-group"
+        options={{ presentation: "transparentModal", animation: "none", gestureEnabled: false }}
+      />
       <Stack.Screen name="group/[id]" />
       <Stack.Screen name="profile/[id]" />
       <Stack.Screen name="select-driver" />
