@@ -26,7 +26,13 @@ function RootLayoutNav() {
         name="create-event"
         options={{ presentation: "transparentModal", animation: "none", gestureEnabled: false }}
       />
-      <Stack.Screen name="event/[id]" options={{ gestureEnabled: false }} />
+      <Stack.Screen
+        name="event/[id]"
+        options={{
+          headerShown: true,
+          gestureEnabled: false,
+        }}
+      />
       <Stack.Screen name="events-nearby" />
       <Stack.Screen name="smart-demo" />
       <Stack.Screen
