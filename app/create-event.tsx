@@ -184,7 +184,7 @@ export default function CreateEventScreen() {
     return true;
   }, [webEndText, webStartText]);
 
-  const submit = useCallback(() => {
+  const submit = useCallback(async () => {
     if (!title.trim()) {
       Alert.alert('Missing title', 'Please enter an event title.');
       return;
@@ -219,12 +219,14 @@ export default function CreateEventScreen() {
 
     try {
       if (mode === 'edit' && params.eventId) {
-        updateEvent(params.eventId, payload);
+        console.log('[create-event] saving edit eventId=', params.eventId);
+        await updateEvent(params.eventId, payload);
         Alert.alert('Saved', 'Event updated.', [{ text: 'OK', onPress: close }]);
         return;
       }
 
-      addEvent({
+      console.log('[create-event] creating event');
+      await addEvent({
         userId: 'user_1',
         createdBy: 'user_1',
         tags: [],

@@ -143,10 +143,12 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
 
   const saveEvents = async (newEvents: Event[]) => {
     try {
-      await safeSetItem(STORAGE_KEY_EVENTS, newEvents);
+      console.log('[Events] saveEvents: updating in-memory events count=', newEvents.length);
       setEvents(newEvents);
+      await safeSetItem(STORAGE_KEY_EVENTS, newEvents);
+      console.log('[Events] saveEvents: persisted to storage');
     } catch (error) {
-      console.error('Failed to save events:', error);
+      console.error('[Events] Failed to save events:', error);
     }
   };
 
@@ -175,20 +177,26 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     return newEvent;
   }, [events]);
 
-  const updateEvent = useCallback(async (id: string, updates: Partial<Event>) => {
+  const updateEvent = useCallback(async (id: string, updates: Partial<Event>): Promise<void> => {
     const event = events.find(e => e.id === id);
-    if (!event) return;
-    
-    const updatedEvent = { ...event, ...updates };
-    
-    if (event.calendarEventId) {
-      await updateCalendarEvent(event.calendarEventId, updatedEvent);
+    if (!event) {
+      console.warn('[Events] updateEvent: not found id=', id);
+      return;
     }
-    
-    const updatedEvents = events.map(e =>
-      e.id === id ? updatedEvent : e
-    );
-    saveEvents(updatedEvents);
+
+    const updatedEvent: Event = { ...event, ...updates };
+    console.log('[Events] updateEvent:', { id, updatesKeys: Object.keys(updates) });
+
+    if (event.calendarEventId) {
+      try {
+        await updateCalendarEvent(event.calendarEventId, updatedEvent);
+      } catch (e) {
+        console.error('[Events] updateEvent: failed to update calendar event', e);
+      }
+    }
+
+    const updatedEvents = events.map(e => (e.id === id ? updatedEvent : e));
+    await saveEvents(updatedEvents);
   }, [events]);
 
   const updatePersonalSchedule = useCallback(async (eventId: string, schedule: { attendStartISO?: string; attendEndISO?: string; notes?: string }) => {
