@@ -173,7 +173,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     }
     
     const updatedEvents = [...events, newEvent];
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
     return newEvent;
   }, [events]);
 
@@ -211,7 +211,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     const updatedEvents = events.map(e =>
       e.id === eventId ? updatedEvent : e
     );
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
   }, [events]);
 
   const bookRide = useCallback(async (eventId: string, rideData: Omit<import('@/types').RideBooking, 'id' | 'bookedAt' | 'status'>) => {
@@ -251,7 +251,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     const updatedEvents = events.map(e =>
       e.id === eventId ? updatedEvent : e
     );
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
   }, [events]);
 
   const updateRideStatus = useCallback(async (rideId: string, status: import('@/types').RideBooking['status']) => {
@@ -278,7 +278,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     }
     
     const updatedEvents = events.filter(event => event.id !== id);
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
   }, [events]);
 
   const deleteEvents = useCallback(async (ids: string[]) => {
@@ -292,7 +292,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     }
     
     const updatedEvents = events.filter(event => !idsSet.has(event.id));
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
   }, [events]);
 
   const duplicateEvent = useCallback(async (id: string) => {
@@ -312,7 +312,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     }
     
     const updatedEvents = [...events, newEvent];
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
     return newEvent;
   }, [events]);
 
@@ -349,7 +349,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       }
       
       const updatedEvents = [...events, ...newEvents];
-      saveEvents(updatedEvents);
+      await saveEvents(updatedEvents);
       return newEvents.length;
     }
 
@@ -537,7 +537,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     }
 
     const updatedEvents = [...events, newEvent];
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
     return newEvent;
   }, [events, discoveredEvents]);
 
