@@ -224,16 +224,19 @@ export default function CreateEventScreen() {
   }, [webEndText, webStartText]);
 
   const submit = useCallback(async () => {
+    console.log('[create-event] submit called', { mode, title: title.trim(), venue: venue.trim() });
+    
     if (!title.trim()) {
       Alert.alert('Missing title', 'Please enter an event title.');
       return;
     }
 
-
     if (!validateWebDates()) return;
 
     const startISO = startAt.toISOString();
     const endISO = endAt.toISOString();
+
+    console.log('[create-event] dates validated', { startISO, endISO });
 
     if (new Date(endISO).getTime() <= new Date(startISO).getTime()) {
       Alert.alert('Invalid time', 'End time must be after the start time.');
@@ -241,7 +244,6 @@ export default function CreateEventScreen() {
     }
 
     const color = categoryMeta.color;
-
     const venueValue = venue.trim() || 'Unknown Location';
 
     const payload = {
@@ -256,10 +258,13 @@ export default function CreateEventScreen() {
       isPublic,
     };
 
+    console.log('[create-event] payload prepared', { payload });
+
     try {
       if (mode === 'edit' && eventId) {
         console.log('[create-event] saving edit eventId=', eventId);
         await updateEvent(eventId, payload);
+        console.log('[create-event] edit successful');
         Alert.alert('Saved', 'Event updated.', [{ text: 'OK', onPress: close }]);
         return;
       }
@@ -270,8 +275,8 @@ export default function CreateEventScreen() {
         return;
       }
 
-      console.log('[create-event] creating event');
-      await addEvent({
+      console.log('[create-event] calling addEvent...');
+      const newEvent = await addEvent({
         userId: 'user_1',
         createdBy: 'user_1',
         tags: [],
@@ -279,12 +284,20 @@ export default function CreateEventScreen() {
         ...payload,
       });
 
-      Alert.alert('Done', mode === 'duplicate' ? 'Event duplicated.' : 'Event created.', [
-        { text: 'OK', onPress: close },
-      ]);
+      console.log('[create-event] event created successfully', { eventId: newEvent.id });
+      Alert.alert(
+        'Success!', 
+        mode === 'duplicate' ? 'Event duplicated.' : 'Event created.', 
+        [
+          { text: 'OK', onPress: () => {
+            console.log('[create-event] closing after save');
+            close();
+          }},
+        ]
+      );
     } catch (e) {
       console.error('[create-event] submit error', e);
-      Alert.alert('Something went wrong', 'Please try again.');
+      Alert.alert('Error', `Failed to save event: ${e instanceof Error ? e.message : 'Unknown error'}`);
     }
   }, [
     addEvent,
