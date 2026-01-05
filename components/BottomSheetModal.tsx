@@ -200,7 +200,7 @@ export default function BottomSheetModal({
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
           >
-            <View style={[styles.sheet, { paddingTop: insets.top || 20 }]}>
+            <View style={styles.sheet}>
               <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
                 <View style={styles.dragHandle} />
               </View>
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   },
   dragHandleContainer: {
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   dragHandle: {
     width: 40,

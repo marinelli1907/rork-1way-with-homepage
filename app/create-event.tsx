@@ -262,8 +262,8 @@ export default function CreateEventScreen() {
   const saveButtonDisabled = !title.trim() || !venue.trim();
 
   const isImportedEvent = useMemo(() => {
-    return mode === 'edit' && existingEvent?.source === 'import';
-  }, [existingEvent?.source, mode]);
+    return existingEvent?.source === 'import';
+  }, [existingEvent?.source]);
 
   return (
     <BottomSheetModal
@@ -284,7 +284,11 @@ export default function CreateEventScreen() {
           placeholder="e.g. Dinner with Friends"
           placeholderTextColor="#94A3B8"
           returnKeyType="next"
+          editable={mode !== 'edit' || !isImportedEvent}
         />
+        {isImportedEvent && mode === 'edit' && (
+          <Text style={styles.importedNote}>Imported event - title cannot be edited</Text>
+        )}
       </View>
 
       <View style={styles.section}>
@@ -439,9 +443,11 @@ export default function CreateEventScreen() {
             <Text style={[styles.privacyText, isPublic && styles.privacyTextActive]}>Public</Text>
           </Pressable>
         </View>
-        <Text style={styles.privacyHint}>
-          Imported events default to Private.
-        </Text>
+        {isImportedEvent && (
+          <Text style={styles.privacyHint}>
+            Imported events must remain private. Duplicate this event to create a public version.
+          </Text>
+        )}
       </View>
 
       <View style={styles.section}>
@@ -575,5 +581,11 @@ const styles = StyleSheet.create({
   closePickerText: {
     color: '#0F172A',
     fontWeight: '600' as const,
+  },
+  importedNote: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#F59E0B',
+    fontStyle: 'italic' as const,
   },
 });
