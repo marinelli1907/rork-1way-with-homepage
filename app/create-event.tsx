@@ -1,20 +1,17 @@
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { X } from 'lucide-react-native';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
+import BottomSheetModal from '@/components/BottomSheetModal';
 import { useEvents } from '@/providers/EventsProvider';
 import { EventCategory, EventFormMode } from '@/types';
 
@@ -60,8 +57,6 @@ function formatWhen(d: Date) {
 
 export default function CreateEventScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-
   const params = useLocalSearchParams<Params>();
   const mode: EventFormMode = (params.mode as EventFormMode) ?? 'create';
 
@@ -121,14 +116,8 @@ export default function CreateEventScreen() {
   const [openStartPicker, setOpenStartPicker] = useState<boolean>(false);
   const [openEndPicker, setOpenEndPicker] = useState<boolean>(false);
 
-  // Web fallbacks
   const [webStartText, setWebStartText] = useState<string>(() => startAt.toISOString());
   const [webEndText, setWebEndText] = useState<string>(() => endAt.toISOString());
-
-  const titleRef = useRef<TextInput>(null);
-  const venueRef = useRef<TextInput>(null);
-  const addressRef = useRef<TextInput>(null);
-  const notesRef = useRef<TextInput>(null);
 
   const screenTitle = useMemo(() => {
     if (mode === 'edit') return 'Edit Event';
@@ -137,14 +126,18 @@ export default function CreateEventScreen() {
   }, [mode]);
 
   const primaryCtaText = useMemo(() => {
-    if (mode === 'edit') return 'Save Changes';
-    if (mode === 'duplicate') return 'Duplicate Event';
-    return 'Add Event';
+    if (mode === 'edit') return 'Save';
+    if (mode === 'duplicate') return 'Duplicate';
+    return 'Create';
   }, [mode]);
 
   const categoryMeta = useMemo(() => {
     return CATEGORY_OPTIONS.find((c) => c.value === category) ?? CATEGORY_OPTIONS[0];
   }, [category]);
+
+  const isDirty = useMemo(() => {
+    return title.trim() !== '' || venue.trim() !== '' || notes.trim() !== '';
+  }, [title, venue, notes]);
 
   const close = useCallback(() => {
     router.back();
@@ -173,13 +166,11 @@ export default function CreateEventScreen() {
   const submit = useCallback(() => {
     if (!title.trim()) {
       Alert.alert('Missing title', 'Please enter an event title.');
-      titleRef.current?.focus();
       return;
     }
 
     if (!venue.trim()) {
       Alert.alert('Missing venue', 'Please enter a venue name.');
-      venueRef.current?.focus();
       return;
     }
 
@@ -221,7 +212,7 @@ export default function CreateEventScreen() {
         ...payload,
       });
 
-      Alert.alert('Done', mode === 'duplicate' ? 'Event duplicated.' : 'Event added.', [
+      Alert.alert('Done', mode === 'duplicate' ? 'Event duplicated.' : 'Event created.', [
         { text: 'OK', onPress: close },
       ]);
     } catch (e) {
@@ -245,229 +236,180 @@ export default function CreateEventScreen() {
     venue,
   ]);
 
-  // Simplified keyboard behavior
-  const behavior = Platform.OS === 'ios' ? 'padding' : 'height';
-  // Adjust offset based on header height (approx 44-60 + status bar)
-  const keyboardOffset = Platform.OS === 'ios' ? 100 : 0; 
+  const saveButtonDisabled = !title.trim() || !venue.trim();
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          title: screenTitle,
-          headerShown: true,
-          headerLeft: () => (
-            <Pressable onPress={close} style={{ paddingRight: 16 }}>
-              <X size={24} color="#000" />
-            </Pressable>
-          ),
-        }}
-      />
-      
-      <KeyboardAvoidingView 
-        style={styles.container} 
-        behavior={behavior} 
-        keyboardVerticalOffset={keyboardOffset}
-      >
-        <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-        >
-          {/* Title Input */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Event Title</Text>
-            <TextInput
-              ref={titleRef}
-              style={styles.input}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="e.g. Dinner with Friends"
-              placeholderTextColor="#94A3B8"
-              returnKeyType="next"
-              onSubmitEditing={() => venueRef.current?.focus()}
-              blurOnSubmit={false}
-            />
-          </View>
+    <BottomSheetModal
+      visible={true}
+      onClose={close}
+      title={screenTitle}
+      onSave={submit}
+      saveButtonText={primaryCtaText}
+      saveButtonDisabled={saveButtonDisabled}
+      isDirty={isDirty}
+    >
+      <View style={styles.section}>
+        <Text style={styles.label}>Event Title *</Text>
+        <TextInput
+          style={styles.input}
+          value={title}
+          onChangeText={setTitle}
+          placeholder="e.g. Dinner with Friends"
+          placeholderTextColor="#94A3B8"
+          returnKeyType="next"
+        />
+      </View>
 
-          {/* Category Selection */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Category</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              style={styles.categoryScroll}
-              contentContainerStyle={{ gap: 8, paddingRight: 20 }}
-            >
-              {CATEGORY_OPTIONS.map((opt) => {
-                const isSelected = opt.value === category;
-                return (
-                  <Pressable
-                    key={opt.value}
-                    style={[
-                      styles.categoryChip,
-                      isSelected && { backgroundColor: opt.color, borderColor: opt.color }
-                    ]}
-                    onPress={() => setCategory(opt.value)}
-                  >
-                    <Text style={[styles.categoryText, isSelected && { color: '#FFF' }]}>
-                      {opt.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Venue & Address */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Location</Text>
-            <TextInput
-              ref={venueRef}
-              style={styles.input}
-              value={venue}
-              onChangeText={setVenue}
-              placeholder="Venue Name"
-              placeholderTextColor="#94A3B8"
-              returnKeyType="next"
-              onSubmitEditing={() => addressRef.current?.focus()}
-              blurOnSubmit={false}
-            />
-            <View style={{ height: 12 }} />
-            <TextInput
-              ref={addressRef}
-              style={styles.input}
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Address (Optional)"
-              placeholderTextColor="#94A3B8"
-              returnKeyType="next"
-              onSubmitEditing={() => notesRef.current?.focus()}
-              blurOnSubmit={false}
-            />
-          </View>
-
-          {/* Date & Time */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Time</Text>
-            {Platform.OS === 'web' ? (
-              <View style={{ gap: 10 }}>
-                <TextInput
-                  style={styles.input}
-                  value={webStartText}
-                  onChangeText={setWebStartText}
-                  placeholder="Start ISO"
-                />
-                <TextInput
-                  style={styles.input}
-                  value={webEndText}
-                  onChangeText={setWebEndText}
-                  placeholder="End ISO"
-                />
-              </View>
-            ) : (
-              <View style={styles.timeRow}>
-                <Pressable style={styles.timeButton} onPress={() => setOpenStartPicker(true)}>
-                  <Text style={styles.timeLabel}>Starts</Text>
-                  <Text style={styles.timeValue}>{formatWhen(startAt)}</Text>
-                </Pressable>
-                <View style={styles.timeDivider} />
-                <Pressable style={styles.timeButton} onPress={() => setOpenEndPicker(true)}>
-                  <Text style={styles.timeLabel}>Ends</Text>
-                  <Text style={styles.timeValue}>{formatWhen(endAt)}</Text>
-                </Pressable>
-              </View>
-            )}
-            
-            {openStartPicker && (
-              <DateTimePicker
-                value={startAt}
-                mode="datetime"
-                display="spinner"
-                onChange={(e, d) => {
-                  if (Platform.OS === 'android') setOpenStartPicker(false);
-                  if (d) {
-                    setStartAt(d);
-                    if (d > endAt) {
-                      setEndAt(new Date(d.getTime() + 2 * 3600000));
-                    }
-                  }
-                }}
-              />
-            )}
-            
-            {openEndPicker && (
-              <DateTimePicker
-                value={endAt}
-                mode="datetime"
-                display="spinner"
-                onChange={(e, d) => {
-                  if (Platform.OS === 'android') setOpenEndPicker(false);
-                  if (d) setEndAt(d);
-                }}
-              />
-            )}
-            
-            {Platform.OS === 'ios' && (openStartPicker || openEndPicker) && (
-              <Pressable 
-                style={styles.closePickerButton}
-                onPress={() => {
-                  setOpenStartPicker(false);
-                  setOpenEndPicker(false);
-                }}
+      <View style={styles.section}>
+        <Text style={styles.label}>Category</Text>
+        <View style={styles.categoryGrid}>
+          {CATEGORY_OPTIONS.map((opt) => {
+            const isSelected = opt.value === category;
+            return (
+              <Pressable
+                key={opt.value}
+                style={[
+                  styles.categoryChip,
+                  isSelected && { backgroundColor: opt.color, borderColor: opt.color },
+                ]}
+                onPress={() => setCategory(opt.value)}
               >
-                <Text style={styles.closePickerText}>Done</Text>
+                <Text style={[styles.categoryText, isSelected && { color: '#FFF' }]}>
+                  {opt.label}
+                </Text>
               </Pressable>
-            )}
-          </View>
+            );
+          })}
+        </View>
+      </View>
 
-          {/* Notes */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Notes</Text>
+      <View style={styles.section}>
+        <Text style={styles.label}>Venue *</Text>
+        <TextInput
+          style={styles.input}
+          value={venue}
+          onChangeText={setVenue}
+          placeholder="Venue Name"
+          placeholderTextColor="#94A3B8"
+          returnKeyType="next"
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Address (Optional)</Text>
+        <TextInput
+          style={styles.input}
+          value={address}
+          onChangeText={setAddress}
+          placeholder="123 Main St, City, State"
+          placeholderTextColor="#94A3B8"
+          returnKeyType="next"
+        />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Time</Text>
+        {Platform.OS === 'web' ? (
+          <View style={{ gap: 10 }}>
             <TextInput
-              ref={notesRef}
-              style={[styles.input, styles.textArea]}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Add details..."
+              style={styles.input}
+              value={webStartText}
+              onChangeText={setWebStartText}
+              placeholder="Start ISO (2026-01-05T19:30:00.000Z)"
               placeholderTextColor="#94A3B8"
-              multiline
-              textAlignVertical="top"
+            />
+            <TextInput
+              style={styles.input}
+              value={webEndText}
+              onChangeText={setWebEndText}
+              placeholder="End ISO (2026-01-05T21:30:00.000Z)"
+              placeholderTextColor="#94A3B8"
             />
           </View>
+        ) : (
+          <View style={styles.timeRow}>
+            <Pressable style={styles.timeButton} onPress={() => setOpenStartPicker(true)}>
+              <Text style={styles.timeLabel}>Starts</Text>
+              <Text style={styles.timeValue}>{formatWhen(startAt)}</Text>
+            </Pressable>
+            <View style={styles.timeDivider} />
+            <Pressable style={styles.timeButton} onPress={() => setOpenEndPicker(true)}>
+              <Text style={styles.timeLabel}>Ends</Text>
+              <Text style={styles.timeValue}>{formatWhen(endAt)}</Text>
+            </Pressable>
+          </View>
+        )}
 
-        </ScrollView>
+        {openStartPicker && (
+          <DateTimePicker
+            value={startAt}
+            mode="datetime"
+            display="spinner"
+            onChange={(e, d) => {
+              if (Platform.OS === 'android') setOpenStartPicker(false);
+              if (d) {
+                setStartAt(d);
+                if (d > endAt) {
+                  setEndAt(new Date(d.getTime() + 2 * 3600000));
+                }
+              }
+            }}
+          />
+        )}
 
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-          <Pressable style={styles.submitButton} onPress={submit}>
-            <Text style={styles.submitButtonText}>{primaryCtaText}</Text>
+        {openEndPicker && (
+          <DateTimePicker
+            value={endAt}
+            mode="datetime"
+            display="spinner"
+            onChange={(e, d) => {
+              if (Platform.OS === 'android') setOpenEndPicker(false);
+              if (d) setEndAt(d);
+            }}
+          />
+        )}
+
+        {Platform.OS === 'ios' && (openStartPicker || openEndPicker) && (
+          <Pressable
+            style={styles.closePickerButton}
+            onPress={() => {
+              setOpenStartPicker(false);
+              setOpenEndPicker(false);
+            }}
+          >
+            <Text style={styles.closePickerText}>Done</Text>
           </Pressable>
-        </View>
-      </KeyboardAvoidingView>
-    </>
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>Notes</Text>
+        <TextInput
+          style={[styles.input, styles.textArea]}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder="Add details..."
+          placeholderTextColor="#94A3B8"
+          multiline
+          textAlignVertical="top"
+        />
+      </View>
+    </BottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  content: {
-    padding: 20,
-  },
   section: {
     marginBottom: 24,
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#0F172A',
     marginBottom: 8,
-    marginLeft: 4,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,
@@ -480,8 +422,10 @@ const styles = StyleSheet.create({
     minHeight: 100,
     paddingTop: 14,
   },
-  categoryScroll: {
-    flexGrow: 0,
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   categoryChip: {
     paddingHorizontal: 16,
@@ -490,11 +434,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
-    marginRight: 8,
   },
   categoryText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#64748B',
   },
   timeRow: {
@@ -521,7 +464,7 @@ const styles = StyleSheet.create({
   },
   timeValue: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     color: '#0F172A',
   },
   closePickerButton: {
@@ -533,24 +476,6 @@ const styles = StyleSheet.create({
   },
   closePickerText: {
     color: '#0F172A',
-    fontWeight: '600',
-  },
-  footer: {
-    backgroundColor: '#FFFFFF',
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-  },
-  submitButton: {
-    backgroundColor: '#E31937',
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  submitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600' as const,
   },
 });

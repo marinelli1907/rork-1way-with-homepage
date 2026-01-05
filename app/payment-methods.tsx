@@ -1,4 +1,3 @@
-
 import { CreditCard, Smartphone, Plus, Trash2, Check } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
@@ -6,18 +5,18 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ScrollView,
   Alert,
   TextInput,
-  Modal,
   ActivityIndicator,
   Keyboard,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import BottomSheetModal from '@/components/BottomSheetModal';
 import { usePayment } from '@/providers/PaymentProvider';
 import { PaymentMethodType } from '@/types';
 
 export default function PaymentMethodsScreen() {
+  const router = useRouter();
   const { paymentMethods, addPaymentMethod, removePaymentMethod, setDefaultPaymentMethod, isLoading } = usePayment();
   
   const [showAddModal, setShowAddModal] = useState(false);
@@ -198,27 +197,42 @@ export default function PaymentMethodsScreen() {
     return 'Payment Method';
   };
 
+  const isAddFormValid = () => {
+    if (selectedType === 'card') {
+      return cardNumber.length >= 13 && cardExpiry.length === 5 && cardCVV.length >= 3;
+    } else if (selectedType === 'paypal') {
+      return paypalEmail.includes('@');
+    }
+    return false;
+  };
+
+  const isDirty = cardNumber !== '' || cardExpiry !== '' || cardCVV !== '' || paypalEmail !== '';
+
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <BottomSheetModal
+        visible={true}
+        onClose={() => router.back()}
+        title="Payment Methods"
+        showSaveButton={false}
+      >
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#1E3A8A" />
           <Text style={styles.loadingText}>Loading payment methods...</Text>
         </View>
-      </SafeAreaView>
+      </BottomSheetModal>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Payment Methods</Text>
-        <Text style={styles.headerSubtitle}>
-          Manage your payment methods for ride bookings
-        </Text>
-      </View>
-
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+    <>
+      <BottomSheetModal
+        visible={true}
+        onClose={() => router.back()}
+        title="Payment Methods"
+        subtitle="Manage your payment methods"
+        showSaveButton={false}
+      >
         {paymentMethods.length === 0 ? (
           <View style={styles.emptyContainer}>
             <CreditCard size={48} color="#CBD5E1" strokeWidth={1.5} />
@@ -228,50 +242,52 @@ export default function PaymentMethodsScreen() {
             </Text>
           </View>
         ) : (
-          paymentMethods.map((method) => (
-            <View key={method.id} style={styles.paymentCard}>
-              <View style={styles.paymentCardHeader}>
-                <View style={styles.paymentCardLeft}>
-                  <View style={styles.paymentIconContainer}>
-                    {getPaymentIcon(method.type)}
-                  </View>
-                  <View style={styles.paymentCardInfo}>
-                    <Text style={styles.paymentCardTitle}>
-                      {getPaymentLabel(method)}
-                    </Text>
-                    {method.type === 'card' && method.cardExpiry && (
-                      <Text style={styles.paymentCardSubtitle}>
-                        Expires {method.cardExpiry}
+          <View style={styles.methodsList}>
+            {paymentMethods.map((method) => (
+              <View key={method.id} style={styles.paymentCard}>
+                <View style={styles.paymentCardHeader}>
+                  <View style={styles.paymentCardLeft}>
+                    <View style={styles.paymentIconContainer}>
+                      {getPaymentIcon(method.type)}
+                    </View>
+                    <View style={styles.paymentCardInfo}>
+                      <Text style={styles.paymentCardTitle}>
+                        {getPaymentLabel(method)}
                       </Text>
-                    )}
-                    {method.isDefault && (
-                      <View style={styles.defaultBadge}>
-                        <Check size={12} color="#059669" strokeWidth={3} />
-                        <Text style={styles.defaultBadgeText}>Default</Text>
-                      </View>
-                    )}
+                      {method.type === 'card' && method.cardExpiry && (
+                        <Text style={styles.paymentCardSubtitle}>
+                          Expires {method.cardExpiry}
+                        </Text>
+                      )}
+                      {method.isDefault && (
+                        <View style={styles.defaultBadge}>
+                          <Check size={12} color="#059669" strokeWidth={3} />
+                          <Text style={styles.defaultBadgeText}>Default</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
-                </View>
 
-                <View style={styles.paymentCardActions}>
-                  {!method.isDefault && (
+                  <View style={styles.paymentCardActions}>
+                    {!method.isDefault && (
+                      <Pressable
+                        style={styles.actionButton}
+                        onPress={() => handleSetDefault(method.id)}
+                      >
+                        <Text style={styles.actionButtonText}>Set Default</Text>
+                      </Pressable>
+                    )}
                     <Pressable
-                      style={styles.actionButton}
-                      onPress={() => handleSetDefault(method.id)}
+                      style={styles.deleteButton}
+                      onPress={() => handleRemovePaymentMethod(method.id, method.isDefault)}
                     >
-                      <Text style={styles.actionButtonText}>Set Default</Text>
+                      <Trash2 size={18} color="#DC2626" />
                     </Pressable>
-                  )}
-                  <Pressable
-                    style={styles.deleteButton}
-                    onPress={() => handleRemovePaymentMethod(method.id, method.isDefault)}
-                  >
-                    <Trash2 size={18} color="#DC2626" />
-                  </Pressable>
+                  </View>
                 </View>
               </View>
-            </View>
-          ))
+            ))}
+          </View>
         )}
 
         <Pressable
@@ -281,157 +297,122 @@ export default function PaymentMethodsScreen() {
           <Plus size={20} color="#FFFFFF" strokeWidth={2.5} />
           <Text style={styles.addButtonText}>Add Payment Method</Text>
         </Pressable>
-      </ScrollView>
+      </BottomSheetModal>
 
-      <Modal
+      <BottomSheetModal
         visible={showAddModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
+        onClose={() => {
           if (!isAdding) {
             setShowAddModal(false);
             resetForm();
           }
         }}
+        title="Add Payment Method"
+        onSave={handleAddPaymentMethod}
+        saveButtonText="Add"
+        saveButtonDisabled={!isAddFormValid() || isAdding}
+        isDirty={isDirty}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add Payment Method</Text>
+        <View style={styles.typeSelector}>
+          <Pressable
+            style={[styles.typeButton, selectedType === 'card' && styles.typeButtonActive]}
+            onPress={() => setSelectedType('card')}
+            disabled={isAdding}
+          >
+            <CreditCard size={20} color={selectedType === 'card' ? '#FFFFFF' : '#64748B'} />
+            <Text style={[styles.typeButtonText, selectedType === 'card' && styles.typeButtonTextActive]}>
+              Card
+            </Text>
+          </Pressable>
 
-            <View style={styles.typeSelector}>
-              <Pressable
-                style={[styles.typeButton, selectedType === 'card' && styles.typeButtonActive]}
-                onPress={() => setSelectedType('card')}
-                disabled={isAdding}
-              >
-                <CreditCard size={20} color={selectedType === 'card' ? '#FFFFFF' : '#64748B'} />
-                <Text style={[styles.typeButtonText, selectedType === 'card' && styles.typeButtonTextActive]}>
-                  Card
-                </Text>
-              </Pressable>
+          <Pressable
+            style={[styles.typeButton, selectedType === 'paypal' && styles.typeButtonActive]}
+            onPress={() => setSelectedType('paypal')}
+            disabled={isAdding}
+          >
+            <Smartphone size={20} color={selectedType === 'paypal' ? '#FFFFFF' : '#64748B'} />
+            <Text style={[styles.typeButtonText, selectedType === 'paypal' && styles.typeButtonTextActive]}>
+              PayPal
+            </Text>
+          </Pressable>
+        </View>
 
-              <Pressable
-                style={[styles.typeButton, selectedType === 'paypal' && styles.typeButtonActive]}
-                onPress={() => setSelectedType('paypal')}
-                disabled={isAdding}
-              >
-                <Smartphone size={20} color={selectedType === 'paypal' ? '#FFFFFF' : '#64748B'} />
-                <Text style={[styles.typeButtonText, selectedType === 'paypal' && styles.typeButtonTextActive]}>
-                  PayPal
-                </Text>
-              </Pressable>
+        {selectedType === 'card' && (
+          <View style={styles.formContainer}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Card Number</Text>
+              <TextInput
+                style={styles.input}
+                value={cardNumber}
+                onChangeText={formatCardNumber}
+                placeholder="1234 5678 9012 3456"
+                placeholderTextColor="#94A3B8"
+                keyboardType="number-pad"
+                maxLength={19}
+                editable={!isAdding}
+              />
             </View>
 
-            {selectedType === 'card' && (
-              <View style={styles.formContainer}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Card Number</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={cardNumber}
-                    onChangeText={formatCardNumber}
-                    placeholder="1234 5678 9012 3456"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="number-pad"
-                    maxLength={19}
-                    editable={!isAdding}
-                  />
-                </View>
-
-                <View style={styles.inputRow}>
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.inputLabel}>Expiry</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={cardExpiry}
-                      onChangeText={formatExpiry}
-                      placeholder="MM/YY"
-                      placeholderTextColor="#94A3B8"
-                      keyboardType="number-pad"
-                      maxLength={5}
-                      editable={!isAdding}
-                    />
-                  </View>
-
-                  <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.inputLabel}>CVV</Text>
-                    <TextInput
-                      style={styles.input}
-                      value={cardCVV}
-                      onChangeText={(text) => setCardCVV(text.replace(/\D/g, '').slice(0, 4))}
-                      placeholder="123"
-                      placeholderTextColor="#94A3B8"
-                      keyboardType="number-pad"
-                      maxLength={4}
-                      secureTextEntry
-                      editable={!isAdding}
-                    />
-                  </View>
-                </View>
+            <View style={styles.inputRow}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>Expiry</Text>
+                <TextInput
+                  style={styles.input}
+                  value={cardExpiry}
+                  onChangeText={formatExpiry}
+                  placeholder="MM/YY"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="number-pad"
+                  maxLength={5}
+                  editable={!isAdding}
+                />
               </View>
-            )}
 
-            {selectedType === 'paypal' && (
-              <View style={styles.formContainer}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>PayPal Email</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={paypalEmail}
-                    onChangeText={setPaypalEmail}
-                    placeholder="email@example.com"
-                    placeholderTextColor="#94A3B8"
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    editable={!isAdding}
-                  />
-                </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.inputLabel}>CVV</Text>
+                <TextInput
+                  style={styles.input}
+                  value={cardCVV}
+                  onChangeText={(text) => setCardCVV(text.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="123"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  secureTextEntry
+                  editable={!isAdding}
+                />
               </View>
-            )}
-
-            <View style={styles.modalActions}>
-              <Pressable
-                style={[styles.modalCancelButton, isAdding && styles.buttonDisabled]}
-                onPress={() => {
-                  setShowAddModal(false);
-                  resetForm();
-                }}
-                disabled={isAdding}
-              >
-                <Text style={styles.modalCancelButtonText}>Cancel</Text>
-              </Pressable>
-
-              <Pressable
-                style={[styles.modalConfirmButton, isAdding && styles.buttonDisabled]}
-                onPress={handleAddPaymentMethod}
-                disabled={isAdding}
-              >
-                {isAdding ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <>
-                    <Plus size={18} color="#FFFFFF" />
-                    <Text style={styles.modalConfirmButtonText}>Add Method</Text>
-                  </>
-                )}
-              </Pressable>
             </View>
           </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+        )}
+
+        {selectedType === 'paypal' && (
+          <View style={styles.formContainer}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>PayPal Email</Text>
+              <TextInput
+                style={styles.input}
+                value={paypalEmail}
+                onChangeText={setPaypalEmail}
+                placeholder="email@example.com"
+                placeholderTextColor="#94A3B8"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                editable={!isAdding}
+              />
+            </View>
+          </View>
+        )}
+      </BottomSheetModal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
   loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
     gap: 16,
   },
   loadingText: {
@@ -439,36 +420,10 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '600' as const,
   },
-  header: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '700' as const,
-    color: '#1E293B',
-    marginBottom: 6,
-  },
-  headerSubtitle: {
-    fontSize: 15,
-    color: '#64748B',
-    fontWeight: '500' as const,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    gap: 12,
-  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 80,
+    paddingVertical: 60,
     gap: 12,
   },
   emptyText: {
@@ -481,8 +436,12 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     textAlign: 'center',
   },
+  methodsList: {
+    gap: 12,
+    marginBottom: 20,
+  },
   paymentCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8FAFC',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
@@ -571,24 +530,6 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    maxHeight: '90%',
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: '700' as const,
-    color: '#1E293B',
-    marginBottom: 20,
-  },
   typeSelector: {
     flexDirection: 'row',
     gap: 12,
@@ -620,7 +561,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     gap: 16,
-    marginBottom: 24,
   },
   inputGroup: {
     gap: 8,
@@ -643,39 +583,5 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     fontSize: 16,
     color: '#1E293B',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  modalCancelButton: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  modalCancelButtonText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#64748B',
-  },
-  modalConfirmButton: {
-    flex: 2,
-    backgroundColor: '#1E3A8A',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 12,
-  },
-  modalConfirmButtonText: {
-    fontSize: 16,
-    fontWeight: '700' as const,
-    color: '#FFFFFF',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
   },
 });
