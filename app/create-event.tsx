@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { MapPin, Tag, Type, Clock, X } from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
-  Keyboard,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEvents } from '@/providers/EventsProvider';
@@ -120,6 +119,10 @@ export default function CreateEventScreen() {
     console.log('[create-event] focus field:', field);
   }, []);
 
+  const kbdBehavior = useMemo(() => {
+    return Platform.OS === 'ios' ? ('padding' as const) : undefined;
+  }, []);
+
   return (
     <>
       <Stack.Screen 
@@ -141,14 +144,16 @@ export default function CreateEventScreen() {
       />
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={kbdBehavior}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        testID="createEvent_keyboardAvoiding"
       >
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           testID="createEvent_scroll"
         >
         <View style={styles.section}>
@@ -321,22 +326,19 @@ export default function CreateEventScreen() {
           />
         </View>
 
+
+          <View style={styles.buttonFooter}>
+            <Pressable
+              style={styles.submitButton}
+              onPress={handleSubmit}
+              testID="createEvent_submitButton"
+            >
+              <Text style={styles.submitButtonText}>
+                {mode === 'edit' ? 'Save Changes' : mode === 'duplicate' ? 'Duplicate Event' : 'Add Event'}
+              </Text>
+            </Pressable>
+          </View>
         </ScrollView>
-        
-        <View style={styles.buttonFooter}>
-          <Pressable
-            style={styles.submitButton}
-            onPress={() => {
-              Keyboard.dismiss();
-              handleSubmit();
-            }}
-            testID="createEvent_submitButton"
-          >
-            <Text style={styles.submitButtonText}>
-              {mode === 'edit' ? 'Save Changes' : mode === 'duplicate' ? 'Duplicate Event' : 'Add Event'}
-            </Text>
-          </Pressable>
-        </View>
       </KeyboardAvoidingView>
     </>
   );
@@ -352,14 +354,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 20,
+    paddingBottom: 28,
   },
   buttonFooter: {
-    padding: 20,
-    paddingBottom: 32,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    marginTop: 8,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   section: {
     marginBottom: 24,
