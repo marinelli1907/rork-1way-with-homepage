@@ -1,101 +1,174 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
-import { Car, MapPin } from 'lucide-react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Car, CheckCircle2, Flag, MapPin } from 'lucide-react-native';
+
+type RideStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'en_route'
+  | 'arrived'
+  | 'in_progress'
+  | 'completed'
+  | 'paid'
+  | 'cancelled';
 
 interface Props {
-  status: 'pending' | 'confirmed' | 'en_route' | 'arrived' | 'in_progress' | 'completed' | 'paid' | 'cancelled';
+  status: RideStatus;
   pickupTime: string;
   estimatedArrivalTime?: string;
 }
 
+type StepKey = 'on_way' | 'arrived_pickup' | 'to_destination' | 'arrived_destination';
+
+const COLORS = {
+  cardBg: '#F6FAFF',
+  cardBorder: '#D7E7FF',
+  textPrimary: '#0B1B3A',
+  textSecondary: '#5B6B86',
+  accent: '#2563EB',
+  accentSoft: '#DBEAFE',
+  success: '#16A34A',
+  track: '#CFE3FF',
+  nodeBorder: '#8BB6FF',
+} as const;
+
+function safeFormatTime(value: string | undefined): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function statusToStepKey(status: RideStatus): StepKey | null {
+  if (status === 'confirmed' || status === 'en_route') return 'on_way';
+  if (status === 'arrived') return 'arrived_pickup';
+  if (status === 'in_progress') return 'to_destination';
+  if (status === 'completed' || status === 'paid') return 'arrived_destination';
+  return null;
+}
+
 export default function DriverArrivalBar({ status, pickupTime, estimatedArrivalTime }: Props) {
-  const progress = useRef(new Animated.Value(0)).current;
-  const [minutesAway, setMinutesAway] = useState(5);
+  const stepKey = statusToStepKey(status);
+  const progressAnim = useRef<Animated.Value>(new Animated.Value(0)).current;
+
+  const steps = useMemo(
+    () =>
+      [
+        { key: 'on_way' as const, label: 'On the way', icon: Car },
+        { key: 'arrived_pickup' as const, label: 'Arrived', icon: MapPin },
+        { key: 'to_destination' as const, label: 'To destination', icon: Flag },
+        { key: 'arrived_destination' as const, label: 'Arrived', icon: CheckCircle2 },
+      ] satisfies { key: StepKey; label: string; icon: typeof Car }[],
+    []
+  );
+
+  const activeIndex = useMemo<number>(() => {
+    if (!stepKey) return -1;
+    return steps.findIndex((s) => s.key === stepKey);
+  }, [stepKey, steps]);
+
+  const progressRatio = useMemo<number>(() => {
+    if (activeIndex < 0) return 0;
+    if (activeIndex === 0) return 0.1;
+    if (activeIndex >= steps.length - 1) return 1;
+    return activeIndex / (steps.length - 1);
+  }, [activeIndex, steps.length]);
 
   useEffect(() => {
-    if (status === 'en_route') {
-      // Animate progress bar indefinitely to simulate movement
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(progress, {
-            toValue: 1,
-            duration: 2000,
-            useNativeDriver: false,
-            easing: Easing.inOut(Easing.ease),
-          }),
-          Animated.timing(progress, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: false,
-          }),
-        ])
-      ).start();
-
-      // Mock counting down minutes
-      const interval = setInterval(() => {
-        setMinutesAway((prev) => (prev > 1 ? prev - 1 : 1));
-      }, 60000); // Reduce minute every 60s
-
-      return () => clearInterval(interval);
-    } else {
-      progress.setValue(0);
+    if (activeIndex < 0) {
+      return;
     }
-  }, [status]);
 
-  if (status !== 'en_route' && status !== 'arrived' && status !== 'confirmed') {
+    Animated.spring(progressAnim, {
+      toValue: progressRatio,
+      useNativeDriver: false,
+      tension: 55,
+      friction: 10,
+    }).start();
+  }, [activeIndex, progressAnim, progressRatio]);
+
+  if (!stepKey) {
     return null;
   }
 
-  const getStatusText = () => {
-    switch (status) {
-      case 'confirmed':
-        return 'Driver found, preparing to head your way';
-      case 'en_route':
-        return `Driver is ${minutesAway} min away`;
-      case 'arrived':
-        return 'Driver has arrived!';
-      default:
-        return '';
-    }
-  };
+  const etaText = safeFormatTime(estimatedArrivalTime) ?? safeFormatTime(pickupTime);
 
-  const getProgressWidth = () => {
-    if (status === 'arrived') return '100%';
-    if (status === 'confirmed') return '10%';
-    return '60%'; // Fixed for en_route visual
-  };
+  const statusTitle = (() => {
+    switch (stepKey) {
+      case 'on_way':
+        return 'Driver is on the way';
+      case 'arrived_pickup':
+        return 'Driver has arrived';
+      case 'to_destination':
+        return 'Headed to destination';
+      case 'arrived_destination':
+        return 'Arrived at destination';
+      default:
+        return 'Ride update';
+    }
+  })();
+
+  const progressWidth = progressAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '100%'],
+  });
+
+  const isCompleted = (index: number) => index < activeIndex;
+  const isActive = (index: number) => index === activeIndex;
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="driverArrivalBar">
       <View style={styles.header}>
-        <Text style={styles.statusText}>{getStatusText()}</Text>
-        <Text style={styles.timeText}>
-          {new Date(pickupTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </Text>
+        <View style={styles.headerText}>
+          <Text style={styles.statusText} numberOfLines={2} testID="driverArrivalBar_statusText">
+            {statusTitle}
+          </Text>
+        </View>
+
+        {etaText ? (
+          <View style={styles.etaPill} testID="driverArrivalBar_etaPill">
+            <Text style={styles.etaLabel}>ETA</Text>
+            <Text style={styles.etaValue} numberOfLines={1}>
+              {etaText}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
-      <View style={styles.track}>
-        {status === 'en_route' ? (
-          <Animated.View
-            style={[
-              styles.bar,
-              {
-                width: '30%',
-                left: progress.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: ['0%', '70%'],
-                }),
-              },
-            ]}
-          />
-        ) : (
-          <View style={[styles.bar, { width: getProgressWidth() }]} />
-        )}
-      </View>
+      <View style={styles.stepper} testID="driverArrivalBar_stepper">
+        <View style={styles.trackBg} />
+        <Animated.View style={[styles.trackFill, { width: progressWidth }]} />
 
-      <View style={styles.icons}>
-        <Car size={16} color="#1E3A8A" />
-        <MapPin size={16} color="#059669" />
+        <View style={styles.nodesRow}>
+          {steps.map((s, idx) => {
+            const Icon = s.icon;
+            const completed = isCompleted(idx);
+            const active = isActive(idx);
+            const nodeBg = completed ? COLORS.accent : COLORS.cardBg;
+            const nodeBorder = completed || active ? COLORS.accent : COLORS.nodeBorder;
+            const iconColor = completed ? '#FFFFFF' : active ? COLORS.accent : COLORS.textSecondary;
+
+            return (
+              <View key={s.key} style={styles.nodeCol} testID={`driverArrivalBar_step_${s.key}`}>
+                <View
+                  style={[
+                    styles.node,
+                    {
+                      backgroundColor: nodeBg,
+                      borderColor: nodeBorder,
+                      transform: [{ scale: active ? 1.06 : 1 }],
+                    },
+                  ]}
+                >
+                  <Icon size={14} color={iconColor} />
+                </View>
+                <Text style={[styles.nodeLabel, active ? styles.nodeLabelActive : null]} numberOfLines={1}>
+                  {s.label}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -104,41 +177,98 @@ export default function DriverArrivalBar({ status, pickupTime, estimatedArrivalT
 const styles = StyleSheet.create({
   container: {
     marginVertical: 12,
-    padding: 12,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.cardBg,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#DBEAFE',
+    borderColor: COLORS.cardBorder,
   },
   header: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: 10,
+    marginBottom: 10,
+  },
+  headerText: {
+    flex: 1,
+    minWidth: 0,
   },
   statusText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1E3A8A',
+    fontWeight: '700',
+    color: COLORS.textPrimary,
+    letterSpacing: -0.2,
   },
-  timeText: {
-    fontSize: 14,
-    color: '#64748B',
-    fontWeight: '500',
+  etaPill: {
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: COLORS.accentSoft,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
-  track: {
+  etaLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: COLORS.textSecondary,
+    letterSpacing: 0.6,
+  },
+  etaValue: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: COLORS.textPrimary,
+    marginTop: 1,
+  },
+  stepper: {
+    height: 54,
+    justifyContent: 'center',
+  },
+  trackBg: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    top: 18,
     height: 6,
-    backgroundColor: '#DBEAFE',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 4,
+    borderRadius: 999,
+    backgroundColor: COLORS.track,
   },
-  bar: {
-    height: '100%',
-    backgroundColor: '#3B82F6',
-    borderRadius: 3,
+  trackFill: {
+    position: 'absolute',
+    left: 14,
+    top: 18,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: COLORS.accent,
   },
-  icons: {
+  nodesRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 2,
+  },
+  nodeCol: {
+    width: '25%',
+    alignItems: 'center',
+  },
+  node: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nodeLabel: {
+    marginTop: 6,
+    fontSize: 11,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    maxWidth: 88,
+  },
+  nodeLabelActive: {
+    color: COLORS.textPrimary,
   },
 });
