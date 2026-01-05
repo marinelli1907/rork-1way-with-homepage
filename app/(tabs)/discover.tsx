@@ -10,7 +10,7 @@ import {
   Utensils,
   Star,
 } from 'lucide-react-native';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -62,13 +62,7 @@ export default function DiscoverScreen() {
     }
   }, [userLocation, requestLocation]);
 
-  useEffect(() => {
-    if (userLocation) {
-      handleDiscoverEvents();
-    }
-  }, [userLocation, selectedCategory, searchDistance]);
-
-  const handleDiscoverEvents = async () => {
+  const handleDiscoverEvents = useCallback(async () => {
     if (!userLocation || isDiscovering) return;
 
     setIsDiscovering(true);
@@ -102,7 +96,13 @@ export default function DiscoverScreen() {
     } finally {
       setIsDiscovering(false);
     }
-  };
+  }, [userLocation, isDiscovering, selectedCategory, searchDistance, searchQuery, discoverNearbyEvents, getNearbyEvents]);
+
+  useEffect(() => {
+    if (userLocation) {
+      handleDiscoverEvents();
+    }
+  }, [userLocation, selectedCategory, searchDistance, handleDiscoverEvents]);
 
   const filteredMovies = useMemo(() => {
     return NOW_PLAYING_MOVIES.filter(movie => 
@@ -121,7 +121,7 @@ export default function DiscoverScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-      <View style={styles.header}>
+      <View style={styles.adHeaderWrapper}>
         <RotatingAdHeader />
       </View>
 
@@ -433,6 +433,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  adHeaderWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'column',

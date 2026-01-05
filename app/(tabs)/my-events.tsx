@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Calendar, Plus, Edit, Copy, Trash2, CheckSquare, Square, Download, List, History } from 'lucide-react-native';
+import RotatingAdHeader from '@/components/RotatingAdHeader';
 import React, { useState } from 'react';
 import {
   View,
@@ -320,37 +321,42 @@ export default function MyEventsScreen() {
   return (
     <View style={styles.container}>
       <View style={[styles.toolbarContainer, { paddingTop: insets.top + 12 }]}>
-        <Pressable
-          style={styles.toolbarButton}
-          onPress={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')}
-        >
-          {viewMode === 'list' ? (
-            <Calendar size={22} color="#1E3A8A" strokeWidth={2} />
-          ) : (
-            <List size={22} color="#1E3A8A" strokeWidth={2} />
-          )}
-          <Text style={styles.toolbarButtonText}>
-            {viewMode === 'list' ? 'Calendar' : 'List'}
-          </Text>
-        </Pressable>
-        {viewMode === 'list' && (
+        <View style={styles.adHeaderWrapper}>
+          <RotatingAdHeader />
+        </View>
+        <View style={styles.toolbarButtons}>
           <Pressable
             style={styles.toolbarButton}
-            onPress={toggleSelectionMode}
+            onPress={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')}
           >
-            <CheckSquare size={22} color="#1E3A8A" strokeWidth={2} />
+            {viewMode === 'list' ? (
+              <Calendar size={22} color="#1E3A8A" strokeWidth={2} />
+            ) : (
+              <List size={22} color="#1E3A8A" strokeWidth={2} />
+            )}
             <Text style={styles.toolbarButtonText}>
-              {isSelectionMode ? 'Cancel' : 'Select'}
+              {viewMode === 'list' ? 'Calendar' : 'List'}
             </Text>
           </Pressable>
-        )}
-        <Pressable
-          style={styles.toolbarButton}
-          onPress={() => router.push('/past')}
-        >
-          <History size={22} color="#1E3A8A" strokeWidth={2} />
-          <Text style={styles.toolbarButtonText}>Past</Text>
-        </Pressable>
+          {viewMode === 'list' && (
+            <Pressable
+              style={styles.toolbarButton}
+              onPress={toggleSelectionMode}
+            >
+              <CheckSquare size={22} color="#1E3A8A" strokeWidth={2} />
+              <Text style={styles.toolbarButtonText}>
+                {isSelectionMode ? 'Cancel' : 'Select'}
+              </Text>
+            </Pressable>
+          )}
+          <Pressable
+            style={styles.toolbarButton}
+            onPress={() => router.push('/past')}
+          >
+            <History size={22} color="#1E3A8A" strokeWidth={2} />
+            <Text style={styles.toolbarButtonText}>Past</Text>
+          </Pressable>
+        </View>
       </View>
 
       {isSelectionMode && (
@@ -441,12 +447,19 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   toolbarContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     paddingHorizontal: 20,
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
+    gap: 12,
+  },
+  adHeaderWrapper: {
+    marginBottom: 8,
+  },
+  toolbarButtons: {
+    flexDirection: 'row',
     gap: 12,
   },
   toolbarButton: {

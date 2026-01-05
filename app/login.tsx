@@ -14,8 +14,8 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
-import * as LocalAuthentication from 'expo-local-authentication';
-import { Shield, Mail, Chrome } from 'lucide-react-native';
+
+
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -65,55 +65,9 @@ export default function LoginScreen() {
     }
   };
 
-  const handleFaceID = async () => {
-    try {
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      if (!hasHardware) {
-        Alert.alert('Not Available', 'Biometric authentication is not available on this device');
-        return;
-      }
 
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      if (!isEnrolled) {
-        Alert.alert('Not Set Up', 'Please set up Face ID or Touch ID in your device settings');
-        return;
-      }
 
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Sign in to 1Way',
-        fallbackLabel: 'Use passcode',
-      });
 
-      if (result.success) {
-        setLoading(true);
-        const signInResult = await signIn('biometric@1way.com', 'biometric', 'customer');
-        if (signInResult.success) {
-          router.replace('/(tabs)/discover');
-        }
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Face ID error:', error);
-      Alert.alert('Error', 'Authentication failed. Please try again.');
-    }
-  };
-
-  const handleSocialSignIn = async (provider: string) => {
-    setLoading(true);
-    try {
-      const result = await signIn(`${provider}@1way.com`, 'social', 'customer');
-      if (result.success) {
-        router.replace('/(tabs)/discover');
-      } else {
-        Alert.alert('Error', result.error || 'Authentication failed');
-      }
-    } catch (error) {
-      console.error('Social sign in error:', error);
-      Alert.alert('Error', 'An error occurred. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <LinearGradient
@@ -213,58 +167,7 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </View>
 
-              {!isSignUp && (
-                <>
-                  <View style={styles.divider}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>or continue with</Text>
-                    <View style={styles.dividerLine} />
-                  </View>
 
-                  <TouchableOpacity
-                    style={styles.biometricButton}
-                    onPress={handleFaceID}
-                    disabled={loading}
-                  >
-                    <Shield size={20} color="#1E3A8A" />
-                    <Text style={styles.biometricButtonText}>Sign in with Face ID</Text>
-                  </TouchableOpacity>
-
-                  <View style={styles.socialRow}>
-                    <TouchableOpacity
-                      style={styles.socialButton}
-                      onPress={() => handleSocialSignIn('google')}
-                    >
-                      <Chrome size={22} color="#1E3A8A" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.socialButton}
-                      onPress={() => handleSocialSignIn('facebook')}
-                    >
-                      <View style={styles.socialIconContainer}>
-                        <Text style={styles.facebookIcon}>f</Text>
-                      </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.socialButton}
-                      onPress={() => handleSocialSignIn('outlook')}
-                    >
-                      <Mail size={22} color="#1E3A8A" />
-                    </TouchableOpacity>
-
-                     <TouchableOpacity
-                      style={styles.socialButton}
-                      onPress={() => handleSocialSignIn('teams')}
-                    >
-                      <View style={[styles.socialIconContainer, { backgroundColor: '#5059C9' }]}>
-                        <Text style={styles.facebookIcon}>T</Text>
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
@@ -385,65 +288,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1E3A8A',
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E2E8F0',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#94A3B8',
-  },
-  biometricButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    gap: 12,
-  },
-  biometricButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1E3A8A',
-  },
-  socialRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  socialButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  socialIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#1877F2',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  facebookIcon: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
+
 });

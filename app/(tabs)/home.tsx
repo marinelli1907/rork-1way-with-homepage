@@ -8,6 +8,8 @@ import {
   TrendingUp,
   Users,
   Zap,
+  RefreshCw,
+  ArrowUpDown,
 } from 'lucide-react-native';
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -24,6 +26,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/providers/AuthProvider';
 import { calculateRideQuote } from '@/utils/pricing';
+import * as Location from 'expo-location';
+import MyAddresses from '@/components/MyAddresses';
+import { SavedAddress } from '@/utils/addresses';
+import RotatingAdHeader from '@/components/RotatingAdHeader';
 
 interface Driver {
   id: string;
@@ -128,6 +134,7 @@ export default function HomeScreen() {
   const [isCalculating, setIsCalculating] = useState(false);
   const [pulseAnim] = useState(new Animated.Value(1));
   const [onlineDrivers, setOnlineDrivers] = useState(AVAILABLE_DRIVERS.filter(d => d.isAvailable));
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
   useEffect(() => {
     Animated.loop(
@@ -145,6 +152,10 @@ export default function HomeScreen() {
       ])
     ).start();
   }, [pulseAnim]);
+
+  useEffect(() => {
+    getCurrentLocation();
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -183,6 +194,52 @@ export default function HomeScreen() {
     return () => clearTimeout(timer);
   }, [calculatePrice]);
 
+  const getCurrentLocation = async () => {
+    setIsLoadingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Location permission denied');
+        setPickupAddress('Enter your pickup location');
+        setIsLoadingLocation(false);
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (address) {
+        const formattedAddress = `${address.street || ''} ${address.streetNumber || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
+        setPickupAddress(formattedAddress || 'Current location');
+      } else {
+        setPickupAddress('Current location');
+      }
+    } catch (error) {
+      console.error('Failed to get location:', error);
+      setPickupAddress('Enter your pickup location');
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  };
+
+  const swapAddresses = () => {
+    const temp = pickupAddress;
+    setPickupAddress(dropoffAddress);
+    setDropoffAddress(temp);
+  };
+
+  const handleAddressFromSaved = (addr: SavedAddress, type: 'pickup' | 'dropoff') => {
+    const formattedAddress = addr.line1;
+    if (type === 'pickup') {
+      setPickupAddress(formattedAddress);
+    } else {
+      setDropoffAddress(formattedAddress);
+    }
+  };
+
   const handleBookNow = () => {
     if (!pickupAddress || !dropoffAddress) return;
 
@@ -210,6 +267,8 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <RotatingAdHeader />
+
         <View style={styles.header}>
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeText}>Welcome back,</Text>
@@ -265,9 +324,27 @@ export default function HomeScreen() {
                   style={styles.addressInput}
                 />
               </View>
+              <Pressable
+                style={styles.locationButton}
+                onPress={getCurrentLocation}
+                disabled={isLoadingLocation}
+              >
+                <RefreshCw
+                  size={18}
+                  color="#1E3A8A"
+                  strokeWidth={2.5}
+                />
+              </Pressable>
             </View>
 
             <View style={styles.routeLine} />
+
+            <Pressable
+              style={styles.swapButton}
+              onPress={swapAddresses}
+            >
+              <ArrowUpDown size={16} color="#64748B" strokeWidth={2.5} />
+            </Pressable>
 
             <View style={styles.inputWrapper}>
               <View style={styles.inputIcon}>
@@ -283,6 +360,14 @@ export default function HomeScreen() {
                 />
               </View>
             </View>
+          </View>
+
+          <View style={styles.savedAddressesSection}>
+            <Text style={styles.savedAddressesLabel}>Quick Fill</Text>
+            <MyAddresses
+              onPickAsPickup={(addr) => handleAddressFromSaved(addr, 'pickup')}
+              onPickAsVenue={(addr) => handleAddressFromSaved(addr, 'dropoff')}
+            />
           </View>
 
           {isCalculating && (
@@ -395,7 +480,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
     paddingBottom: 30,
   },
   header: {
@@ -404,6 +488,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
     marginBottom: 20,
+    paddingHorizontal: 20,
   },
   welcomeSection: {
     flex: 1,
@@ -456,6 +541,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     borderWidth: 1,
     borderColor: '#A7F3D0',
+    marginHorizontal: 20,
   },
   networkBadge: {
     flexDirection: 'row',
@@ -493,6 +579,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 6,
+    marginHorizontal: 20,
   },
   bookingTitle: {
     fontSize: 20,
@@ -507,6 +594,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    position: 'relative',
   },
   inputIcon: {
     width: 32,
@@ -539,6 +627,41 @@ const styles = StyleSheet.create({
     backgroundColor: '#CBD5E1',
     marginLeft: 15,
     marginVertical: 4,
+  },
+  locationButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+  },
+  swapButton: {
+    position: 'absolute',
+    right: 20,
+    top: '50%',
+    transform: [{ translateY: -12 }],
+    zIndex: 10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  savedAddressesSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  savedAddressesLabel: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#64748B',
+    marginBottom: 12,
   },
   priceEstimate: {
     flexDirection: 'row',
@@ -593,6 +716,7 @@ const styles = StyleSheet.create({
   },
   driversSection: {
     marginBottom: 24,
+    paddingHorizontal: 20,
   },
   driversSectionHeader: {
     flexDirection: 'row',
@@ -713,6 +837,7 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: 'row',
     gap: 12,
+    paddingHorizontal: 20,
   },
   quickActionCard: {
     flex: 1,
