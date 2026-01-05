@@ -304,7 +304,7 @@ export default function CreateEventScreen() {
     isPublic,
   ]);
 
-  const saveButtonDisabled = !title.trim();
+  const saveButtonDisabled = mode === 'edit' ? !isDirty || !title.trim() : !title.trim();
 
   return (
     <BottomSheetModal
