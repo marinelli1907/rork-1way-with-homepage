@@ -56,32 +56,30 @@ export default function EditProfileScreen() {
 
     setIsGenerating(true);
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_TOOLKIT_URL}/generate-image`, {
+      const response = await fetch('https://toolkit.rork.com/images/generate/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          prompt: {
-            type: 'generate',
-            prompt: `A high-quality, professional studio photograph of a ${carYear} ${carColor} ${carMake} ${carModel}. The car should be shown from a 3/4 front angle view, positioned on a clean white studio background. Perfect lighting, photorealistic, detailed, modern automotive photography style. The car should be clean and well-maintained.`,
-          },
+          prompt: `A high-quality, professional studio photograph of a ${carYear} ${carColor} ${carMake} ${carModel}. The car should be shown from a 3/4 front angle view, positioned on a clean white studio background. Perfect lighting, photorealistic, detailed, modern automotive photography style. The car should be clean and well-maintained.`,
           size: '1536x1024',
-          type: 'asset',
-          background: 'opaque',
-          projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
-          teamId: process.env.EXPO_PUBLIC_TEAM_ID,
         }),
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Image generation failed:', errorText);
         throw new Error('Failed to generate image');
       }
 
       const data = await response.json();
-      if (data.url) {
-        setCarImageUrl(data.url);
+      if (data.image && data.image.base64Data) {
+        const imageUri = `data:${data.image.mimeType};base64,${data.image.base64Data}`;
+        setCarImageUrl(imageUri);
         Alert.alert('Success', 'Car image generated successfully!');
+      } else {
+        throw new Error('Invalid response format');
       }
     } catch (error) {
       console.error('Failed to generate car image:', error);
