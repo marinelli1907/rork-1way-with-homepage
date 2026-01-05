@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Platform,
@@ -17,10 +17,10 @@ import { useEvents } from '@/providers/EventsProvider';
 import { EventCategory, EventFormMode } from '@/types';
 
 type Params = {
-  mode?: EventFormMode;
-  eventId?: string;
-  holidayName?: string;
-  holidayDate?: string;
+  mode?: EventFormMode | EventFormMode[];
+  eventId?: string | string[];
+  holidayName?: string | string[];
+  holidayDate?: string | string[];
 };
 
 type CategoryOption = {
@@ -56,35 +56,45 @@ function formatWhen(d: Date) {
   });
 }
 
+function firstParam(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
+
 export default function CreateEventScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<Params>();
-  const mode: EventFormMode = (params.mode as EventFormMode) ?? 'create';
+
+  const modeParam = firstParam(params.mode as unknown as string | string[] | undefined);
+  const mode: EventFormMode = (modeParam as EventFormMode) ?? 'create';
+
+  const eventId = firstParam(params.eventId);
+  const holidayNameParam = firstParam(params.holidayName);
+  const holidayDateParam = firstParam(params.holidayDate);
 
   const { addEvent, updateEvent, events } = useEvents();
 
   const existingEvent = useMemo(() => {
     if (mode === 'create') return undefined;
-    const eventId = params.eventId;
     if (!eventId) return undefined;
     return events.find((e) => e.id === eventId);
-  }, [events, mode, params.eventId]);
+  }, [eventId, events, mode]);
 
   const holidayName = useMemo(() => {
-    const raw = params.holidayName;
+    const raw = holidayNameParam;
     if (!raw) return '';
     try {
       return decodeURIComponent(raw);
     } catch {
       return String(raw);
     }
-  }, [params.holidayName]);
+  }, [holidayNameParam]);
 
   const holidayDate = useMemo(() => {
-    if (!params.holidayDate) return null;
-    const parsed = new Date(params.holidayDate);
+    if (!holidayDateParam) return null;
+    const parsed = new Date(holidayDateParam);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
-  }, [params.holidayDate]);
+  }, [holidayDateParam]);
 
   const initialStart = useMemo(() => {
     if (existingEvent?.startISO) {
@@ -114,6 +124,35 @@ export default function CreateEventScreen() {
   const [endAt, setEndAt] = useState<Date>(initialEnd);
   const [notes, setNotes] = useState<string>(existingEvent?.notes ?? '');
   const [isPublic, setIsPublic] = useState<boolean>(existingEvent?.isPublic ?? false);
+
+  const hydratedFromExistingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (mode !== 'edit') return;
+    if (!existingEvent) return;
+    if (hydratedFromExistingRef.current) return;
+
+    hydratedFromExistingRef.current = true;
+    console.log('[create-event] hydrate form from existing event', {
+      eventId: existingEvent.id,
+      title: existingEvent.title,
+      startISO: existingEvent.startISO,
+      endISO: existingEvent.endISO,
+    });
+
+    setTitle(existingEvent.title ?? '');
+    setVenue(existingEvent.venue ?? '');
+    setAddress(existingEvent.address ?? '');
+    setCategory(existingEvent.category ?? 'general');
+    setStartAt(new Date(existingEvent.startISO));
+    setEndAt(new Date(existingEvent.endISO));
+    setNotes(existingEvent.notes ?? '');
+    setIsPublic(existingEvent.isPublic ?? false);
+    if (Platform.OS === 'web') {
+      setWebStartText(existingEvent.startISO);
+      setWebEndText(existingEvent.endISO);
+    }
+  }, [existingEvent, mode]);
 
   const [openStartPicker, setOpenStartPicker] = useState<boolean>(false);
   const [openEndPicker, setOpenEndPicker] = useState<boolean>(false);
@@ -218,10 +257,16 @@ export default function CreateEventScreen() {
     };
 
     try {
-      if (mode === 'edit' && params.eventId) {
-        console.log('[create-event] saving edit eventId=', params.eventId);
-        await updateEvent(params.eventId, payload);
+      if (mode === 'edit' && eventId) {
+        console.log('[create-event] saving edit eventId=', eventId);
+        await updateEvent(eventId, payload);
         Alert.alert('Saved', 'Event updated.', [{ text: 'OK', onPress: close }]);
+        return;
+      }
+
+      if (mode === 'edit' && !eventId) {
+        console.warn('[create-event] edit mode but missing eventId param');
+        Alert.alert('Error', 'Missing event id. Please close and try again.');
         return;
       }
 
@@ -250,7 +295,7 @@ export default function CreateEventScreen() {
     endAt,
     mode,
     notes,
-    params.eventId,
+    eventId,
     startAt,
     title,
     updateEvent,
