@@ -1,5 +1,5 @@
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
-import { MapPin, Tag, Type, Clock } from 'lucide-react-native';
+import { MapPin, Tag, Type, Clock, X } from 'lucide-react-native';
 import React, { useState } from 'react';
 import {
   View,
@@ -33,22 +33,6 @@ const CATEGORIES: { value: EventCategory; label: string; color: string }[] = [
   { value: 'holiday', label: 'Holiday', color: '#059669' },
   { value: 'general', label: 'General', color: '#6B7280' },
 ];
-
-const DEFAULT_RADIUS = 25;
-
-function getStoredRadius(): number {
-  if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
-    const stored = localStorage.getItem('smartAddRadius');
-    return stored ? parseInt(stored, 10) : DEFAULT_RADIUS;
-  }
-  return DEFAULT_RADIUS;
-}
-
-function setStoredRadius(value: number) {
-  if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
-    localStorage.setItem('smartAddRadius', value.toString());
-  }
-}
 
 export default function CreateEventScreen() {
   const router = useRouter();
@@ -136,6 +120,11 @@ export default function CreateEventScreen() {
         options={{ 
           title: mode === 'edit' ? 'Edit Event' : mode === 'duplicate' ? 'Duplicate Event' : 'Create Event',
           headerShown: true,
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()} style={{ paddingLeft: 8 }}>
+              <X size={24} color="#1E3A8A" strokeWidth={2} />
+            </Pressable>
+          ),
         }} 
       />
       <ScrollView

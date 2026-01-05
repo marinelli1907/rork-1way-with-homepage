@@ -10,7 +10,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Check } from 'lucide-react-native';
+import { X, Check } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useProfiles } from '@/providers/ProfilesProvider';
 
@@ -58,7 +58,7 @@ export default function CreateGroupScreen() {
         <View style={styles.inner}>
           <View style={styles.header}>
             <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <ArrowLeft size={24} color="#1E293B" strokeWidth={2} />
+              <X size={24} color="#1E293B" strokeWidth={2} />
             </Pressable>
             <Text style={styles.headerTitle}>Create Group</Text>
             <Pressable

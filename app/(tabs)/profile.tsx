@@ -29,6 +29,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
+import RotatingAdHeader from '@/components/RotatingAdHeader';
 
 type MenuItem = {
   icon: typeof User;
@@ -268,6 +269,8 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <RotatingAdHeader />
+
         <View style={styles.userSummary}>
           <View style={styles.avatarContainer}>
             <Image
@@ -374,7 +377,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 24,
     paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   userSummary: {
     alignItems: 'center',

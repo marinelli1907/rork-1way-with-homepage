@@ -1,5 +1,6 @@
 import { Send } from 'lucide-react-native';
 import React, { useState, useRef, useEffect } from 'react';
+import RotatingAdHeader from '@/components/RotatingAdHeader';
 import {
   View,
   Text,
@@ -265,6 +266,8 @@ export default function AiUnoScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        <RotatingAdHeader />
+        
         {messages.length === 0 && (
           <View style={styles.welcomeContainer}>
             <Text style={styles.welcomeText}>
@@ -448,7 +451,8 @@ const styles = StyleSheet.create({
   },
   messagesContent: {
     padding: 16,
-    paddingBottom: 20,
+    paddingBottom: 120,
+    gap: 16,
   },
   welcomeContainer: {
     alignItems: 'center',
