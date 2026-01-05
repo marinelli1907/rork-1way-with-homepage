@@ -9,13 +9,14 @@ const STORAGE_KEY_TRANSACTIONS = '@payment_transactions';
 export const [PaymentProvider, usePayment] = createContextHook(() => {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     
     const loadData = async () => {
       try {
+        setIsLoading(true);
         const [methodsData, transactionsData] = await Promise.all([
           safeGetItem<PaymentMethod[]>(STORAGE_KEY_PAYMENT_METHODS),
           safeGetItem<PaymentTransaction[]>(STORAGE_KEY_TRANSACTIONS),
@@ -24,14 +25,22 @@ export const [PaymentProvider, usePayment] = createContextHook(() => {
         if (mounted) {
           if (methodsData && Array.isArray(methodsData)) {
             setPaymentMethods(methodsData);
+          } else {
+            setPaymentMethods([]);
           }
 
           if (transactionsData && Array.isArray(transactionsData)) {
             setTransactions(transactionsData);
+          } else {
+            setTransactions([]);
           }
         }
       } catch (error) {
         console.error('Failed to load payment data:', error);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -43,56 +52,79 @@ export const [PaymentProvider, usePayment] = createContextHook(() => {
   }, []);
 
   const savePaymentMethods = async (newMethods: PaymentMethod[]) => {
-    try {
-      await safeSetItem(STORAGE_KEY_PAYMENT_METHODS, newMethods);
-      setPaymentMethods(newMethods);
-    } catch (error) {
-      console.error('Failed to save payment methods:', error);
+    const ok = await safeSetItem(STORAGE_KEY_PAYMENT_METHODS, newMethods);
+    if (!ok) {
+      throw new Error('Failed to persist payment methods');
     }
+    setPaymentMethods(newMethods);
   };
 
   const saveTransactions = async (newTransactions: PaymentTransaction[]) => {
-    try {
-      await safeSetItem(STORAGE_KEY_TRANSACTIONS, newTransactions);
-      setTransactions(newTransactions);
-    } catch (error) {
-      console.error('Failed to save transactions:', error);
+    const ok = await safeSetItem(STORAGE_KEY_TRANSACTIONS, newTransactions);
+    if (!ok) {
+      throw new Error('Failed to persist payment transactions');
     }
+    setTransactions(newTransactions);
   };
 
-  const addPaymentMethod = useCallback(async (methodData: Omit<PaymentMethod, 'id' | 'createdAt' | 'userId'>) => {
-    const newMethod: PaymentMethod = {
-      ...methodData,
-      id: `pm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      userId: 'user_1',
-      createdAt: new Date().toISOString(),
-    };
+  const addPaymentMethod = useCallback(
+    async (methodData: Omit<PaymentMethod, 'id' | 'createdAt' | 'userId'>) => {
+      const newMethod: PaymentMethod = {
+        ...methodData,
+        id: `pm_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+        userId: 'user_1',
+        createdAt: new Date().toISOString(),
+      };
 
-    let updatedMethods = [...paymentMethods, newMethod];
+      setIsLoading(true);
+      try {
+        let updatedMethods = [...paymentMethods, newMethod];
 
-    if (newMethod.isDefault) {
-      updatedMethods = updatedMethods.map(m => ({
-        ...m,
-        isDefault: m.id === newMethod.id,
-      }));
-    }
+        if (newMethod.isDefault) {
+          updatedMethods = updatedMethods.map(m => ({
+            ...m,
+            isDefault: m.id === newMethod.id,
+          }));
+        }
 
-    await savePaymentMethods(updatedMethods);
-    return newMethod;
-  }, [paymentMethods]);
+        await savePaymentMethods(updatedMethods);
+        console.log('[PaymentProvider] added method:', newMethod.id, newMethod.type);
+        return newMethod;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [paymentMethods]
+  );
 
-  const removePaymentMethod = useCallback(async (methodId: string) => {
-    const updatedMethods = paymentMethods.filter(m => m.id !== methodId);
-    await savePaymentMethods(updatedMethods);
-  }, [paymentMethods]);
+  const removePaymentMethod = useCallback(
+    async (methodId: string) => {
+      setIsLoading(true);
+      try {
+        const updatedMethods = paymentMethods.filter(m => m.id !== methodId);
+        await savePaymentMethods(updatedMethods);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [paymentMethods]
+  );
 
-  const setDefaultPaymentMethod = useCallback(async (methodId: string) => {
-    const updatedMethods = paymentMethods.map(m => ({
-      ...m,
-      isDefault: m.id === methodId,
-    }));
-    await savePaymentMethods(updatedMethods);
-  }, [paymentMethods]);
+  const setDefaultPaymentMethod = useCallback(
+    async (methodId: string) => {
+      setIsLoading(true);
+      try {
+        const updatedMethods = paymentMethods.map(m => ({
+          ...m,
+          isDefault: m.id === methodId,
+        }));
+        await savePaymentMethods(updatedMethods);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [paymentMethods]
+  );
 
   const getDefaultPaymentMethod = useCallback((): PaymentMethod | null => {
     return paymentMethods.find(m => m.isDefault) || paymentMethods[0] || null;

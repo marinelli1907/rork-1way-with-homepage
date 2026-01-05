@@ -20,13 +20,13 @@ export default function PaymentMethodsScreen() {
   const params = useLocalSearchParams<{ closeOnAdd?: string; returnTo?: string }>();
   const { paymentMethods, addPaymentMethod, removePaymentMethod, setDefaultPaymentMethod, isLoading } = usePayment();
   
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [selectedType, setSelectedType] = useState<PaymentMethodType>('card');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCVV, setCardCVV] = useState('');
-  const [paypalEmail, setPaypalEmail] = useState('');
-  const [isAdding, setIsAdding] = useState(false);
+  const [cardNumber, setCardNumber] = useState<string>('');
+  const [cardExpiry, setCardExpiry] = useState<string>('');
+  const [cardCVV, setCardCVV] = useState<string>('');
+  const [paypalEmail, setPaypalEmail] = useState<string>('');
+  const [isAdding, setIsAdding] = useState<boolean>(false);
 
   const handleAddPaymentMethod = async () => {
     if (selectedType === 'card') {
@@ -92,8 +92,13 @@ export default function PaymentMethodsScreen() {
       resetForm();
 
       if (params.closeOnAdd === '1') {
-        console.log('[payment-methods] closeOnAdd=1 -> returning to previous screen');
-        router.back();
+        const returnTo = (params.returnTo ?? '').toString();
+        console.log('[payment-methods] closeOnAdd=1 -> returning to:', returnTo || '(back)');
+        if (returnTo) {
+          router.replace({ pathname: `/${returnTo}` as any });
+        } else {
+          router.back();
+        }
       }
     } catch (error) {
       console.error('Failed to add payment method:', error);
@@ -299,6 +304,7 @@ export default function PaymentMethodsScreen() {
         <Pressable
           style={styles.addButton}
           onPress={() => setShowAddModal(true)}
+          testID="openAddPaymentMethod"
         >
           <Plus size={20} color="#FFFFFF" strokeWidth={2.5} />
           <Text style={styles.addButtonText}>Add Payment Method</Text>
@@ -356,6 +362,7 @@ export default function PaymentMethodsScreen() {
                 keyboardType="number-pad"
                 maxLength={19}
                 editable={!isAdding}
+                testID="paymentCardNumberInput"
               />
             </View>
 
@@ -371,6 +378,7 @@ export default function PaymentMethodsScreen() {
                   keyboardType="number-pad"
                   maxLength={5}
                   editable={!isAdding}
+                  testID="paymentCardExpiryInput"
                 />
               </View>
 
@@ -386,6 +394,7 @@ export default function PaymentMethodsScreen() {
                   maxLength={4}
                   secureTextEntry
                   editable={!isAdding}
+                  testID="paymentCardCvvInput"
                 />
               </View>
             </View>
@@ -405,6 +414,7 @@ export default function PaymentMethodsScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 editable={!isAdding}
+                testID="paymentPaypalEmailInput"
               />
             </View>
           </View>
