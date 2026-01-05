@@ -209,15 +209,32 @@ export default function SelectDriverScreen() {
             
             try {
               const result = JSON.parse(responseText);
-              if (result.image && result.image.mimeType && result.image.base64Data) {
+              
+              const maybe = result as {
+                image?: { base64Data?: string; mimeType?: string; url?: string };
+                url?: string;
+              };
+              
+              const base64Data = maybe.image?.base64Data;
+              const mimeType = maybe.image?.mimeType;
+              const url = maybe.image?.url ?? maybe.url;
+              
+              if (base64Data && mimeType) {
                 return {
                   ...driver,
-                  vehicleImage: `data:${result.image.mimeType};base64,${result.image.base64Data}`,
+                  vehicleImage: `data:${mimeType};base64,${base64Data}`,
                 };
-              } else {
-                console.error(`Invalid image data structure for ${driver.name}`);
-                return driver;
               }
+              
+              if (url && typeof url === 'string') {
+                return {
+                  ...driver,
+                  vehicleImage: url,
+                };
+              }
+              
+              console.warn(`No valid image data for ${driver.name}, using driver without image`);
+              return driver;
             } catch (parseError) {
               console.error(`JSON parse error for ${driver.name}:`, parseError);
               console.error('Response text preview:', responseText.substring(0, 100));
