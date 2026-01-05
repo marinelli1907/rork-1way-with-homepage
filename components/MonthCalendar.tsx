@@ -330,8 +330,6 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
             
             const isHoliday = event.id.startsWith('holiday_');
 
-            const isImported = event.source === 'import';
-            
             return (
               <Pressable
                 key={event.id}
@@ -339,7 +337,6 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
                   styles.eventDot,
                   { backgroundColor: color },
                   isBeingDragged && styles.eventDotDragging,
-                  isImported && styles.eventDotImported,
                 ]}
                 onPress={() => {
                   if (!isDragging) {
@@ -367,11 +364,6 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
                   {event.title}
                 </Text>
 
-                {isImported && (
-                  <Text style={styles.eventImportedBadge} numberOfLines={1}>
-                    Imported
-                  </Text>
-                )}
               </Pressable>
             );
           })}
@@ -691,17 +683,6 @@ const styles = StyleSheet.create({
   },
   eventDotDragging: {
     opacity: 0.4,
-  },
-  eventDotImported: {
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.75)',
-  },
-  eventImportedBadge: {
-    marginTop: 2,
-    fontSize: 7,
-    fontWeight: '700' as const,
-    color: 'rgba(255, 255, 255, 0.92)',
-    letterSpacing: 0.2,
   },
   modalOverlay: {
     flex: 1,

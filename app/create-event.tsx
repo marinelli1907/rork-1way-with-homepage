@@ -261,10 +261,6 @@ export default function CreateEventScreen() {
 
   const saveButtonDisabled = !title.trim() || !venue.trim();
 
-  const isImportedEvent = useMemo(() => {
-    return existingEvent?.source === 'import';
-  }, [existingEvent?.source]);
-
   return (
     <BottomSheetModal
       visible={true}
@@ -284,11 +280,7 @@ export default function CreateEventScreen() {
           placeholder="e.g. Dinner with Friends"
           placeholderTextColor="#94A3B8"
           returnKeyType="next"
-          editable={mode !== 'edit' || !isImportedEvent}
         />
-        {isImportedEvent && mode === 'edit' && (
-          <Text style={styles.importedNote}>Imported event - title cannot be edited</Text>
-        )}
       </View>
 
       <View style={styles.section}>
@@ -428,26 +420,14 @@ export default function CreateEventScreen() {
             style={[
               styles.privacyOption,
               isPublic && styles.privacyOptionActive,
-              isImportedEvent && styles.privacyOptionDisabled,
             ]}
-            onPress={() => {
-              if (isImportedEvent) {
-                Alert.alert('Imported Event', 'Imported events stay private. Duplicate the event to create a public version.');
-                return;
-              }
-              setIsPublic(true);
-            }}
+            onPress={() => setIsPublic(true)}
             testID="eventPrivacyPublic"
           >
             <Globe size={16} color={isPublic ? '#FFFFFF' : '#64748B'} strokeWidth={2} />
             <Text style={[styles.privacyText, isPublic && styles.privacyTextActive]}>Public</Text>
           </Pressable>
         </View>
-        {isImportedEvent && (
-          <Text style={styles.privacyHint}>
-            Imported events must remain private. Duplicate this event to create a public version.
-          </Text>
-        )}
       </View>
 
       <View style={styles.section}>

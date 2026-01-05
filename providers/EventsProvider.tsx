@@ -313,6 +313,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     const guardiansEvents: Event[] = GUARDIANS_2025_HOME_GAMES.map((game, index) => ({
       id: `guardians_${Date.now()}_${index}`,
       userId,
+      createdBy: userId,
       title: game.title,
       category: 'sports' as EventCategory,
       startISO: game.startISO,
@@ -323,6 +324,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       tags: ['MLB', 'Guardians', 'home'],
       source: 'import' as const,
       notes: `Home game vs ${game.opponent}`,
+      isPublic: false,
     }));
 
     const existingIds = new Set(events.map(e => e.title + e.startISO));
