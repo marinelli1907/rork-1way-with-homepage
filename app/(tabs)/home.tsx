@@ -10,7 +10,7 @@ import {
   RefreshCw,
   ArrowUpDown,
 } from 'lucide-react-native';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -162,34 +162,34 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  const calculatePrice = useCallback(async () => {
-    if (!pickupAddress || !dropoffAddress) {
-      setEstimatedPrice(null);
-      return;
-    }
-
-    setIsCalculating(true);
-    try {
-      const quote = await calculateRideQuote({
-        origin: pickupAddress,
-        destination: dropoffAddress,
-        pickupTime: new Date().toISOString(),
-      });
-      setEstimatedPrice(quote.total);
-    } catch (error) {
-      console.error('Failed to calculate price:', error);
-    } finally {
-      setIsCalculating(false);
-    }
-  }, [pickupAddress, dropoffAddress]);
-
   useEffect(() => {
+    const calculatePrice = async () => {
+      if (!pickupAddress || !dropoffAddress) {
+        setEstimatedPrice(null);
+        return;
+      }
+
+      setIsCalculating(true);
+      try {
+        const quote = await calculateRideQuote({
+          origin: pickupAddress,
+          destination: dropoffAddress,
+          pickupTime: new Date().toISOString(),
+        });
+        setEstimatedPrice(quote.total);
+      } catch (error) {
+        console.error('Failed to calculate price:', error);
+      } finally {
+        setIsCalculating(false);
+      }
+    };
+
     const timer = setTimeout(() => {
       calculatePrice();
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [calculatePrice]);
+  }, [pickupAddress, dropoffAddress]);
 
   const getCurrentLocation = async () => {
     setIsLoadingLocation(true);
