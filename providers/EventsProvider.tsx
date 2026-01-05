@@ -166,14 +166,14 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       ...event,
       id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     };
-    
+
     const calendarEventId = await syncEventToCalendar(newEvent);
     if (calendarEventId) {
       newEvent.calendarEventId = calendarEventId;
     }
-    
+
     const updatedEvents = [...events, newEvent];
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
     return newEvent;
   }, [events]);
 
@@ -211,7 +211,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     const updatedEvents = events.map(e =>
       e.id === eventId ? updatedEvent : e
     );
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
   }, [events]);
 
   const bookRide = useCallback(async (eventId: string, rideData: Omit<import('@/types').RideBooking, 'id' | 'bookedAt' | 'status'>) => {
@@ -251,7 +251,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     const updatedEvents = events.map(e =>
       e.id === eventId ? updatedEvent : e
     );
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
   }, [events]);
 
   const updateRideStatus = useCallback(async (rideId: string, status: import('@/types').RideBooking['status']) => {
@@ -276,23 +276,23 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     if (event?.calendarEventId) {
       await deleteEventFromCalendar(event.calendarEventId);
     }
-    
+
     const updatedEvents = events.filter(event => event.id !== id);
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
   }, [events]);
 
   const deleteEvents = useCallback(async (ids: string[]) => {
     const idsSet = new Set(ids);
-    
+
     const eventsToDelete = events.filter(event => idsSet.has(event.id));
     for (const event of eventsToDelete) {
       if (event.calendarEventId) {
         await deleteEventFromCalendar(event.calendarEventId);
       }
     }
-    
+
     const updatedEvents = events.filter(event => !idsSet.has(event.id));
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
   }, [events]);
 
   const duplicateEvent = useCallback(async (id: string) => {
@@ -305,14 +305,14 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       source: 'manual',
       calendarEventId: undefined,
     };
-    
+
     const calendarEventId = await syncEventToCalendar(newEvent);
     if (calendarEventId) {
       newEvent.calendarEventId = calendarEventId;
     }
-    
+
     const updatedEvents = [...events, newEvent];
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
     return newEvent;
   }, [events]);
 
@@ -349,7 +349,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       }
       
       const updatedEvents = [...events, ...newEvents];
-      saveEvents(updatedEvents);
+      await saveEvents(updatedEvents);
       return newEvents.length;
     }
 
@@ -537,7 +537,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     }
 
     const updatedEvents = [...events, newEvent];
-    saveEvents(updatedEvents);
+    await saveEvents(updatedEvents);
     return newEvent;
   }, [events, discoveredEvents]);
 
@@ -628,14 +628,17 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
   }, [interestedEvents, notInterestedIds]);
 
   const importFromIOSCalendar = useCallback(async (): Promise<number> => {
+    if (Platform.OS === 'web') {
+      console.log('[Import] Calendar import not available on web');
+      return 0;
+    }
+
     try {
       const hasPermission = await Calendar.requestCalendarPermissionsAsync();
 
       if (hasPermission.status !== 'granted') {
         console.log('Calendar permission denied');
-        if (Platform.OS !== 'web') {
-          Alert.alert('Permission Required', 'Please enable calendar access in your device settings to import events.');
-        }
+        Alert.alert('Permission Required', 'Please enable calendar access in your device settings to import events.');
         return 0;
       }
 

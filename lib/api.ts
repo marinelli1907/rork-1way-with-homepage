@@ -1,6 +1,15 @@
 import axios from 'axios';
 
-export const API_BASE_URL = 'http://127.0.0.1:8000/api';
+function getApiBaseUrl(): string {
+  const envBase = process.env.EXPO_PUBLIC_RORK_API_BASE_URL;
+  if (envBase && typeof envBase === 'string') {
+    return `${envBase.replace(/\/$/, '')}/api`;
+  }
+
+  return 'http://127.0.0.1:8000/api';
+}
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
