@@ -57,8 +57,7 @@ export default function ProfileScreen() {
   const { signOut } = useAuth();
 
   const handleEditProfile = () => {
-    console.log('Edit profile tapped');
-    Alert.alert('Edit Profile', 'This will open profile editing screen');
+    router.push('/edit-profile' as any);
   };
 
   const handleLogout = () => {

@@ -237,6 +237,11 @@ export interface UserProfile {
   isAppUser?: boolean;
   eventPrivacyPublic?: boolean;
   savedAddresses?: SavedAddress[];
+  carMake?: string;
+  carModel?: string;
+  carYear?: string;
+  carColor?: string;
+  carImageUrl?: string;
 }
 
 export interface Contact {

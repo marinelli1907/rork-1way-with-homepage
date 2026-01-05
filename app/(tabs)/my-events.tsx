@@ -16,6 +16,7 @@ import {
 import { useEvents } from '@/providers/EventsProvider';
 import { Event } from '@/types';
 import MonthCalendar from '@/components/MonthCalendar';
+import RotatingAdHeader from '@/components/RotatingAdHeader';
 
 
 const SWIPE_THRESHOLD = 80;
@@ -319,6 +320,9 @@ export default function MyEventsScreen() {
 
   return (
     <ScreenShell scrollable={false}>
+      <View style={styles.adHeaderWrapper}>
+        <RotatingAdHeader />
+      </View>
       <View style={styles.toolbarContainer}>
         <View style={styles.toolbarButtons}>
           <Pressable
@@ -432,6 +436,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  adHeaderWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     flex: 1,
