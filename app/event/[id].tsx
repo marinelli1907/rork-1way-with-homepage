@@ -479,7 +479,7 @@ export default function EventDetailScreen() {
   const connectedProfiles = getConnectedProfiles();
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <Stack.Screen 
         options={{ 
           title: 'Event Details',
