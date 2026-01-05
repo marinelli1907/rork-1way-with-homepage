@@ -1,6 +1,6 @@
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { MapPin, Tag, Type, Clock, X } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEvents } from '@/providers/EventsProvider';
@@ -115,6 +116,10 @@ export default function CreateEventScreen() {
     }
   };
 
+  const handleFieldFocus = useCallback((field: string) => {
+    console.log('[create-event] focus field:', field);
+  }, []);
+
   return (
     <>
       <Stack.Screen 
@@ -122,7 +127,13 @@ export default function CreateEventScreen() {
           title: mode === 'edit' ? 'Edit Event' : mode === 'duplicate' ? 'Duplicate Event' : 'Create Event',
           headerShown: true,
           headerLeft: () => (
-            <Pressable onPress={() => router.back()} style={{ paddingLeft: 8 }}>
+            <Pressable
+              onPress={() => router.back()}
+              style={{ paddingLeft: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+              testID="createEvent_closeButton"
+            >
               <X size={24} color="#1E3A8A" strokeWidth={2} />
             </Pressable>
           ),
@@ -130,14 +141,15 @@ export default function CreateEventScreen() {
       />
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="always"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          testID="createEvent_scroll"
         >
         <View style={styles.section}>
           <View style={styles.fieldHeader}>
@@ -150,6 +162,11 @@ export default function CreateEventScreen() {
             onChangeText={setTitle}
             placeholder="Event title"
             placeholderTextColor="#94A3B8"
+            onFocus={() => handleFieldFocus('title')}
+            onBlur={() => console.log('[create-event] blur field: title')}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            testID="createEvent_titleInput"
           />
         </View>
 
@@ -194,6 +211,11 @@ export default function CreateEventScreen() {
             onChangeText={setVenue}
             placeholder="e.g., Progressive Field"
             placeholderTextColor="#94A3B8"
+            onFocus={() => handleFieldFocus('venue')}
+            onBlur={() => console.log('[create-event] blur field: venue')}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            testID="createEvent_venueInput"
           />
         </View>
 
@@ -208,6 +230,11 @@ export default function CreateEventScreen() {
             onChangeText={setAddress}
             placeholder="Venue address"
             placeholderTextColor="#94A3B8"
+            onFocus={() => handleFieldFocus('address')}
+            onBlur={() => console.log('[create-event] blur field: address')}
+            returnKeyType="next"
+            blurOnSubmit={false}
+            testID="createEvent_addressInput"
           />
         </View>
 
@@ -288,10 +315,20 @@ export default function CreateEventScreen() {
             placeholderTextColor="#94A3B8"
             multiline
             numberOfLines={3}
+            onFocus={() => handleFieldFocus('notes')}
+            onBlur={() => console.log('[create-event] blur field: notes')}
+            testID="createEvent_notesInput"
           />
         </View>
 
-        <Pressable style={styles.submitButton} onPress={handleSubmit}>
+        <Pressable
+          style={styles.submitButton}
+          onPress={() => {
+            Keyboard.dismiss();
+            handleSubmit();
+          }}
+          testID="createEvent_submitButton"
+        >
           <Text style={styles.submitButtonText}>
             {mode === 'edit' ? 'Save Changes' : mode === 'duplicate' ? 'Duplicate Event' : 'Add Event'}
           </Text>
