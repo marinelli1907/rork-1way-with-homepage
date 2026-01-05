@@ -289,7 +289,6 @@ export default function CreateEventScreen() {
           }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           showsVerticalScrollIndicator={false}
           testID="createEvent_scroll"
         >
