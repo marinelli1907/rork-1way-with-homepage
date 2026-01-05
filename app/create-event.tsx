@@ -310,6 +310,9 @@ export default function CreateEventScreen() {
               returnKeyType="next"
               blurOnSubmit={false}
               onSubmitEditing={() => venueRef.current?.focus()}
+              editable={true}
+              autoCorrect={true}
+              autoCapitalize="sentences"
               testID="createEvent_title"
             />
           </View>
@@ -321,6 +324,7 @@ export default function CreateEventScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.chipsRow}
               keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled={true}
               testID="createEvent_categoryRow"
             >
               {CATEGORY_OPTIONS.map((opt) => {
@@ -358,6 +362,9 @@ export default function CreateEventScreen() {
               returnKeyType="next"
               blurOnSubmit={false}
               onSubmitEditing={() => addressRef.current?.focus()}
+              editable={true}
+              autoCorrect={true}
+              autoCapitalize="words"
               testID="createEvent_venue"
             />
 
@@ -374,6 +381,9 @@ export default function CreateEventScreen() {
               returnKeyType="next"
               blurOnSubmit={false}
               onSubmitEditing={() => notesRef.current?.focus()}
+              editable={true}
+              autoCorrect={true}
+              autoCapitalize="words"
               testID="createEvent_address"
             />
           </View>
@@ -392,6 +402,7 @@ export default function CreateEventScreen() {
                   style={styles.input}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  editable={true}
                   testID="createEvent_webStart"
                 />
                 <View style={{ height: 12 }} />
@@ -403,6 +414,7 @@ export default function CreateEventScreen() {
                   style={styles.input}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  editable={true}
                   testID="createEvent_webEnd"
                 />
               </>
@@ -489,6 +501,9 @@ export default function CreateEventScreen() {
               style={[styles.input, styles.notes]}
               multiline
               textAlignVertical="top"
+              editable={true}
+              autoCorrect={true}
+              autoCapitalize="sentences"
               testID="createEvent_notes"
             />
           </View>
