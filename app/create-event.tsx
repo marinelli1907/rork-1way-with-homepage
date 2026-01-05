@@ -190,10 +190,6 @@ export default function CreateEventScreen() {
       return;
     }
 
-    if (!venue.trim()) {
-      Alert.alert('Missing venue', 'Please enter a venue name.');
-      return;
-    }
 
     if (!validateWebDates()) return;
 
@@ -207,13 +203,15 @@ export default function CreateEventScreen() {
 
     const color = categoryMeta.color;
 
+    const venueValue = venue.trim() || 'Unknown Location';
+
     const payload = {
       title: title.trim(),
       category,
       startISO,
       endISO,
-      venue: venue.trim(),
-      address: (address.trim() || venue.trim()) as string,
+      venue: venueValue,
+      address: (address.trim() || venueValue) as string,
       color,
       notes: notes.trim() || undefined,
       isPublic,
@@ -259,7 +257,7 @@ export default function CreateEventScreen() {
     isPublic,
   ]);
 
-  const saveButtonDisabled = !title.trim() || !venue.trim();
+  const saveButtonDisabled = !title.trim();
 
   return (
     <BottomSheetModal
