@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Lock, Globe } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import BottomSheetModal from '@/components/BottomSheetModal';
@@ -112,6 +113,7 @@ export default function CreateEventScreen() {
   const [startAt, setStartAt] = useState<Date>(initialStart);
   const [endAt, setEndAt] = useState<Date>(initialEnd);
   const [notes, setNotes] = useState<string>(existingEvent?.notes ?? '');
+  const [isPublic, setIsPublic] = useState<boolean>(existingEvent?.isPublic ?? false);
 
   const [openStartPicker, setOpenStartPicker] = useState<boolean>(false);
   const [openEndPicker, setOpenEndPicker] = useState<boolean>(false);
@@ -136,8 +138,8 @@ export default function CreateEventScreen() {
   }, [category]);
 
   const isDirty = useMemo(() => {
-    return title.trim() !== '' || venue.trim() !== '' || notes.trim() !== '';
-  }, [title, venue, notes]);
+    return title.trim() !== '' || venue.trim() !== '' || notes.trim() !== '' || isPublic;
+  }, [title, venue, notes, isPublic]);
 
   const close = useCallback(() => {
     router.back();
@@ -195,6 +197,7 @@ export default function CreateEventScreen() {
       address: (address.trim() || venue.trim()) as string,
       color,
       notes: notes.trim() || undefined,
+      isPublic,
     };
 
     try {
@@ -234,6 +237,7 @@ export default function CreateEventScreen() {
     updateEvent,
     validateWebDates,
     venue,
+    isPublic,
   ]);
 
   const saveButtonDisabled = !title.trim() || !venue.trim();
@@ -383,6 +387,31 @@ export default function CreateEventScreen() {
       </View>
 
       <View style={styles.section}>
+        <Text style={styles.label}>Privacy</Text>
+        <View style={styles.privacyRow}>
+          <Pressable
+            style={[styles.privacyOption, !isPublic && styles.privacyOptionActive]}
+            onPress={() => setIsPublic(false)}
+            testID="eventPrivacyPrivate"
+          >
+            <Lock size={16} color={!isPublic ? '#FFFFFF' : '#64748B'} strokeWidth={2} />
+            <Text style={[styles.privacyText, !isPublic && styles.privacyTextActive]}>Private</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.privacyOption, isPublic && styles.privacyOptionActive]}
+            onPress={() => setIsPublic(true)}
+            testID="eventPrivacyPublic"
+          >
+            <Globe size={16} color={isPublic ? '#FFFFFF' : '#64748B'} strokeWidth={2} />
+            <Text style={[styles.privacyText, isPublic && styles.privacyTextActive]}>Public</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.privacyHint}>
+          Imported events are always private.
+        </Text>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.label}>Notes</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
@@ -421,6 +450,39 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
     paddingTop: 14,
+  },
+  privacyRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  privacyOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+  },
+  privacyOptionActive: {
+    backgroundColor: '#1E3A8A',
+    borderColor: '#1E3A8A',
+  },
+  privacyText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#64748B',
+  },
+  privacyTextActive: {
+    color: '#FFFFFF',
+  },
+  privacyHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#64748B',
   },
   categoryGrid: {
     flexDirection: 'row',

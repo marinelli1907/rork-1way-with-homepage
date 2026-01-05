@@ -2,8 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert } from 'react-native';
 import { Event } from '@/types';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Copy, Move, Edit, Trash2 } from 'lucide-react-native';
-import { getMultiYearHolidays, Holiday } from '@/constants/us-federal-holidays';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Copy, Move } from 'lucide-react-native';
+import { getMultiYearHolidays } from '@/constants/us-federal-holidays';
 
 interface MonthCalendarProps {
   events: Event[];
@@ -24,7 +24,7 @@ interface DayCell {
 
 export default function MonthCalendar({ events, selectedDate, onDateSelect, onEventUpdate, onEventDuplicate, onEventDelete }: MonthCalendarProps) {
   const router = useRouter();
-  const today = new Date();
+  const today = useMemo(() => new Date(), []);
   const [currentMonth, setCurrentMonth] = useState(selectedDate || today);
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(currentMonth.getFullYear());
@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
     borderColor: '#1E3A8A',
   },
   otherMonthCell: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
   },
   dayHeader: {
     marginBottom: 4,
@@ -592,7 +592,7 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
   },
   otherMonthText: {
-    color: '#94A3B8',
+    color: '#1E293B',
   },
   eventsContainer: {
     gap: 2,

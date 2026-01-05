@@ -2,15 +2,23 @@ import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Alert, Platform } from 'react-native';
 import * as Location from 'expo-location';
-import { Event, EventCategory, UserPrefs, CatalogEventWithDistance, NearbyFilters, UserLocation, CatalogEvent, InterestedEvent } from '@/types';
+import * as Calendar from 'expo-calendar';
+
 import { GUARDIANS_2025_HOME_GAMES } from '@/constants/guardians-schedule';
 import { CATALOG_EVENTS } from '@/constants/catalog-events';
 import { VENUE_SURGE_MULTIPLIERS } from '@/constants/venues';
-import * as Calendar from 'expo-calendar';
 import { syncEventToCalendar, deleteEventFromCalendar, updateCalendarEvent, getAvailableCalendars, importEventsFromCalendar } from '@/utils/calendar-sync';
 import { discoverEvents, EventDiscoveryFilters } from '@/utils/event-discovery';
 import { registerForPushNotifications, scheduleEventNotification, cancelNotification } from '@/utils/notifications';
 import { safeGetItem, safeSetItem } from '@/utils/storage-helpers';
+import { Event, EventCategory, UserPrefs, CatalogEventWithDistance, NearbyFilters, UserLocation, CatalogEvent, InterestedEvent } from '@/types';
+
+function normalizeImportKey(title: string, startISO: string): string {
+  const safeTitle = (title || '').trim().toLowerCase();
+  const time = new Date(startISO).getTime();
+  const safeTime = Number.isNaN(time) ? startISO : String(time);
+  return `${safeTitle}__${safeTime}`;
+}
 
 const STORAGE_KEY_EVENTS = '@calendar_events';
 const STORAGE_KEY_PREFS = '@user_prefs';
@@ -616,7 +624,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       if (hasPermission.status !== 'granted') {
         console.log('Calendar permission denied');
         if (Platform.OS !== 'web') {
-           Alert.alert('Permission Required', 'Please enable calendar access in your device settings to import events.');
+          Alert.alert('Permission Required', 'Please enable calendar access in your device settings to import events.');
         }
         return 0;
       }
@@ -628,9 +636,9 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       }
 
       const startDate = new Date();
-      startDate.setMonth(startDate.getMonth() - 1); // Look back 1 month
+      startDate.setMonth(startDate.getMonth() - 1);
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 12); // Look ahead 12 months
+      endDate.setMonth(endDate.getMonth() + 12);
 
       console.log(`[Import] Starting calendar import... Range: ${startDate.toISOString()} - ${endDate.toISOString()}`);
 
@@ -651,54 +659,58 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
         nightlife: '#A855F7',
       };
 
+      const existingByCalendarId = new Set<string>(events.map((e) => e.calendarEventId).filter(Boolean) as string[]);
+      const existingByKey = new Set<string>(events.map((e) => normalizeImportKey(e.title, e.startISO)));
+
+      const toAdd: Event[] = [];
       let totalImported = 0;
 
       for (const calendar of calendars) {
         console.log(`[Import] checking calendar: ${calendar.title} (ID: ${calendar.id})`);
-        const importedEvents = await importEventsFromCalendar(
-          calendar.id,
-          startDate,
-          endDate
-        );
+        const importedEvents = await importEventsFromCalendar(calendar.id, startDate, endDate);
 
         for (const importedEvent of importedEvents) {
-          const existingEvent = events.find(
-            e => (e.title === importedEvent.title && e.startISO === importedEvent.startISO) || e.calendarEventId === importedEvent.id
-          );
-
-          if (!existingEvent) {
-            const locationParts = importedEvent.location?.split(',') || [];
-            const venue = locationParts[0]?.trim() || 'Unknown Location';
-            const address = importedEvent.location || '';
-
-            const newEvent: Event = {
-              id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-              userId: 'user_1',
-              title: importedEvent.title,
-              category: 'general',
-              startISO: importedEvent.startISO,
-              endISO: importedEvent.endISO,
-              venue,
-              address,
-              color: categoryColors.general || '#6B7280',
-              tags: [importedEvent.calendarName],
-              source: 'import',
-              notes: importedEvent.notes,
-              calendarEventId: importedEvent.id,
-            };
-
-            events.push(newEvent);
-            totalImported++;
-            console.log(`[Import] Added new event: ${newEvent.title}`);
-          } else {
-             // console.log(`[Import] Skipped existing event: ${importedEvent.title}`);
+          if (existingByCalendarId.has(importedEvent.id)) {
+            continue;
           }
+
+          const key = normalizeImportKey(importedEvent.title, importedEvent.startISO);
+          if (existingByKey.has(key)) {
+            continue;
+          }
+
+          const locationParts = importedEvent.location?.split(',') || [];
+          const venue = locationParts[0]?.trim() || 'Unknown Location';
+          const address = importedEvent.location || '';
+
+          const newEvent: Event = {
+            id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            userId: 'user_1',
+            title: importedEvent.title,
+            category: 'general',
+            startISO: importedEvent.startISO,
+            endISO: importedEvent.endISO,
+            venue,
+            address,
+            color: categoryColors.general || '#6B7280',
+            tags: [importedEvent.calendarName],
+            source: 'import',
+            notes: importedEvent.notes,
+            calendarEventId: importedEvent.id,
+            isPublic: false,
+          };
+
+          toAdd.push(newEvent);
+          existingByCalendarId.add(importedEvent.id);
+          existingByKey.add(key);
+          totalImported++;
+          console.log(`[Import] Added new event: ${newEvent.title}`);
         }
       }
 
       console.log(`[Import] Total imported: ${totalImported}`);
-      if (totalImported > 0) {
-        await saveEvents([...events]);
+      if (toAdd.length > 0) {
+        await saveEvents([...events, ...toAdd]);
       }
 
       return totalImported;
