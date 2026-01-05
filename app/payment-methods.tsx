@@ -243,7 +243,7 @@ export default function PaymentMethodsScreen() {
   return (
     <>
       <BottomSheetModal
-        visible={true}
+        visible={!showAddModal}
         onClose={() => router.back()}
         title="Payment Methods"
         subtitle="Manage your payment methods"
@@ -307,8 +307,12 @@ export default function PaymentMethodsScreen() {
         )}
 
         <Pressable
+          testID="openAddPaymentMethod"
           style={styles.addButton}
-          onPress={() => setShowAddModal(true)}
+          onPress={() => {
+            console.log('[payment-methods] open add modal');
+            setShowAddModal(true);
+          }}
         >
           <Plus size={20} color="#FFFFFF" strokeWidth={2.5} />
           <Text style={styles.addButtonText}>Add Payment Method</Text>
@@ -319,13 +323,15 @@ export default function PaymentMethodsScreen() {
         visible={showAddModal}
         onClose={() => {
           if (!isAdding) {
+            console.log('[payment-methods] close add modal');
             setShowAddModal(false);
             resetForm();
           }
         }}
         title="Add Payment Method"
+        subtitle="Choose a type and enter details"
         onSave={handleAddPaymentMethod}
-        saveButtonText="Add"
+        saveButtonText={isAdding ? 'Adding…' : 'Add'}
         saveButtonDisabled={!isAddFormValid() || isAdding}
         isDirty={isDirty}
       >
@@ -358,6 +364,7 @@ export default function PaymentMethodsScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Card Number</Text>
               <TextInput
+                testID="cardNumberInput"
                 style={styles.input}
                 value={cardNumber}
                 onChangeText={formatCardNumber}
@@ -373,6 +380,7 @@ export default function PaymentMethodsScreen() {
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.inputLabel}>Expiry</Text>
                 <TextInput
+                  testID="cardExpiryInput"
                   style={styles.input}
                   value={cardExpiry}
                   onChangeText={formatExpiry}
@@ -387,6 +395,7 @@ export default function PaymentMethodsScreen() {
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.inputLabel}>CVV</Text>
                 <TextInput
+                  testID="cardCvvInput"
                   style={styles.input}
                   value={cardCVV}
                   onChangeText={(text) => setCardCVV(text.replace(/\D/g, '').slice(0, 4))}
@@ -407,6 +416,7 @@ export default function PaymentMethodsScreen() {
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>PayPal Email</Text>
               <TextInput
+                testID="paypalEmailInput"
                 style={styles.input}
                 value={paypalEmail}
                 onChangeText={setPaypalEmail}
