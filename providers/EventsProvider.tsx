@@ -1,5 +1,6 @@
 import createContextHook from '@nkzw/create-context-hook';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { Alert, Platform } from 'react-native';
 import * as Location from 'expo-location';
 import { Event, EventCategory, UserPrefs, CatalogEventWithDistance, NearbyFilters, UserLocation, CatalogEvent, InterestedEvent } from '@/types';
 import { GUARDIANS_2025_HOME_GAMES } from '@/constants/guardians-schedule';
@@ -611,8 +612,12 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
   const importFromIOSCalendar = useCallback(async (): Promise<number> => {
     try {
       const hasPermission = await Calendar.requestCalendarPermissionsAsync();
+
       if (hasPermission.status !== 'granted') {
         console.log('Calendar permission denied');
+        if (Platform.OS !== 'web') {
+           Alert.alert('Permission Required', 'Please enable calendar access in your device settings to import events.');
+        }
         return 0;
       }
 

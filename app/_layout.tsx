@@ -22,7 +22,7 @@ function RootLayoutNav() {
       <Stack.Screen name="login" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="(driver)" />
-      <Stack.Screen name="create-event" options={{ presentation: "modal" }} />
+      <Stack.Screen name="create-event" />
       <Stack.Screen name="event/[id]" />
       <Stack.Screen name="events-nearby" />
       <Stack.Screen name="smart-demo" />
