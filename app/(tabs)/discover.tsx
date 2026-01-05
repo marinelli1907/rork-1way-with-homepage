@@ -102,7 +102,8 @@ export default function DiscoverScreen() {
     if (userLocation) {
       handleDiscoverEvents();
     }
-  }, [userLocation, selectedCategory, searchDistance, handleDiscoverEvents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userLocation, selectedCategory, searchDistance]);
 
   const filteredMovies = useMemo(() => {
     return NOW_PLAYING_MOVIES.filter(movie => 
