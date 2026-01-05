@@ -157,7 +157,6 @@ export default function SelectDriverScreen() {
   const [bidAmount, setBidAmount] = useState('');
   const [splitCostEnabled, setSplitCostEnabled] = useState(false);
   const [numberOfPassengers, setNumberOfPassengers] = useState(1);
-  const [generatingVehicleImages, setGeneratingVehicleImages] = useState(false);
   const [showBidModal, setShowBidModal] = useState(false);
   const [bidsReceived, setBidsReceived] = useState<{ driverId: string; bidPrice: number }[]>([]);
   const [showPassengerModal, setShowPassengerModal] = useState(false);
@@ -180,89 +179,97 @@ export default function SelectDriverScreen() {
 
   const loadDrivers = useCallback(async () => {
     setLoading(true);
-    setGeneratingVehicleImages(true);
     
     try {
       const sortedDrivers = [...MOCK_DRIVERS].sort((a, b) => a.distance - b.distance);
       
-      const driversWithImages = await Promise.all(
-        sortedDrivers.map(async (driver) => {
-          try {
-            const prompt = `A professional photograph of a ${driver.vehicleColor} ${driver.vehicleBrand} ${driver.vehicleModel} car, parked in a clean urban setting, side angle view, realistic, high quality, modern, well-maintained vehicle`;
-            const response = await fetch('https://toolkit.rork.com/images/generate/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ prompt, size: '1024x1024' }),
-            });
-            
-            if (!response.ok) {
-              console.error(`Failed to generate image for ${driver.name}: ${response.status} ${response.statusText}`);
-              return driver;
-            }
-            
-            const responseText = await response.text();
-            
-            if (!responseText || responseText.trim() === '') {
-              console.error(`Empty response for ${driver.name}`);
-              return driver;
-            }
-            
-            try {
-              const result = JSON.parse(responseText);
-              
-              const maybe = result as {
-                image?: { base64Data?: string; mimeType?: string; url?: string };
-                url?: string;
-              };
-              
-              const base64Data = maybe.image?.base64Data;
-              const mimeType = maybe.image?.mimeType;
-              const url = maybe.image?.url ?? maybe.url;
-              
-              if (base64Data && mimeType) {
-                return {
-                  ...driver,
-                  vehicleImage: `data:${mimeType};base64,${base64Data}`,
-                };
-              }
-              
-              if (url && typeof url === 'string') {
-                return {
-                  ...driver,
-                  vehicleImage: url,
-                };
-              }
-              
-              console.warn(`No valid image data for ${driver.name}, using driver without image`);
-              return driver;
-            } catch (parseError) {
-              console.error(`JSON parse error for ${driver.name}:`, parseError);
-              console.error('Response text preview:', responseText.substring(0, 100));
-              return driver;
-            }
-          } catch (error) {
-            console.error(`Failed to generate image for ${driver.name}:`, error);
-            return driver;
-          }
-        })
-      );
-      
-      setDrivers(driversWithImages);
+      setDrivers(sortedDrivers);
 
       const quickDriverId = (params.quickDriverId ?? '').toString();
       if (quickDriverId) {
-        const found = driversWithImages.find(d => d.id === quickDriverId);
+        const found = sortedDrivers.find(d => d.id === quickDriverId);
         if (found) {
           console.log('[select-driver] quick driver selected:', found.name);
           setSelectedDriver(found);
-          return;
         }
-      }
-
-      if (selectedOption === 'app_price' && driversWithImages.length > 0) {
-        const nearestDriver = driversWithImages[0];
+      } else if (selectedOption === 'app_price' && sortedDrivers.length > 0) {
+        const nearestDriver = sortedDrivers[0];
         setSelectedDriver(nearestDriver);
       }
+
+      setLoading(false);
+      
+      const driversWithImages = await Promise.race([
+        Promise.all(
+          sortedDrivers.map(async (driver) => {
+            try {
+              const prompt = `A professional photograph of a ${driver.vehicleColor} ${driver.vehicleBrand} ${driver.vehicleModel} car, parked in a clean urban setting, side angle view, realistic, high quality, modern, well-maintained vehicle`;
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 10000);
+              
+              const response = await fetch('https://toolkit.rork.com/images/generate/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt, size: '1024x1024' }),
+                signal: controller.signal,
+              });
+              
+              clearTimeout(timeoutId);
+              
+              if (!response.ok) {
+                console.error(`Failed to generate image for ${driver.name}: ${response.status} ${response.statusText}`);
+                return driver;
+              }
+              
+              const responseText = await response.text();
+              
+              if (!responseText || responseText.trim() === '') {
+                console.error(`Empty response for ${driver.name}`);
+                return driver;
+              }
+              
+              try {
+                const result = JSON.parse(responseText);
+                
+                const maybe = result as {
+                  image?: { base64Data?: string; mimeType?: string; url?: string };
+                  url?: string;
+                };
+                
+                const base64Data = maybe.image?.base64Data;
+                const mimeType = maybe.image?.mimeType;
+                const url = maybe.image?.url ?? maybe.url;
+                
+                if (base64Data && mimeType) {
+                  return {
+                    ...driver,
+                    vehicleImage: `data:${mimeType};base64,${base64Data}`,
+                  };
+                }
+                
+                if (url && typeof url === 'string') {
+                  return {
+                    ...driver,
+                    vehicleImage: url,
+                  };
+                }
+                
+                console.warn(`No valid image data for ${driver.name}, using driver without image`);
+                return driver;
+              } catch (parseError) {
+                console.error(`JSON parse error for ${driver.name}:`, parseError);
+                return driver;
+              }
+            } catch (error) {
+              console.error(`Failed to generate image for ${driver.name}:`, error);
+              return driver;
+            }
+          })
+        ),
+        new Promise<Driver[]>((resolve) => setTimeout(() => resolve(sortedDrivers), 30000))
+      ]);
+      
+      setDrivers(driversWithImages);
     } catch (error) {
       console.error('Failed to load drivers:', error);
       const sortedDrivers = [...MOCK_DRIVERS].sort((a, b) => a.distance - b.distance);
@@ -274,17 +281,13 @@ export default function SelectDriverScreen() {
         if (found) {
           console.log('[select-driver] quick driver selected (fallback):', found.name);
           setSelectedDriver(found);
-          return;
         }
-      }
-
-      if (selectedOption === 'app_price' && sortedDrivers.length > 0) {
+      } else if (selectedOption === 'app_price' && sortedDrivers.length > 0) {
         const nearestDriver = sortedDrivers[0];
         setSelectedDriver(nearestDriver);
       }
     } finally {
       setLoading(false);
-      setGeneratingVehicleImages(false);
     }
   }, [params.quickDriverId, selectedOption]);
 
@@ -528,9 +531,17 @@ export default function SelectDriverScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#1E3A8A" />
-          <Text style={styles.loadingText}>
-            {generatingVehicleImages ? 'Loading driver vehicles...' : 'Finding available drivers...'}
-          </Text>
+          <Text style={styles.loadingText}>Finding available drivers...</Text>
+          <Pressable
+            style={styles.cancelLoadingButton}
+            onPress={() => {
+              setLoading(false);
+              setSelectedOption(null);
+              setDrivers([]);
+            }}
+          >
+            <Text style={styles.cancelLoadingText}>Cancel</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );
@@ -1759,5 +1770,17 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
     color: '#FFFFFF',
     letterSpacing: 0.5,
+  },
+  cancelLoadingButton: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 8,
+  },
+  cancelLoadingText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: '#64748B',
   },
 });
