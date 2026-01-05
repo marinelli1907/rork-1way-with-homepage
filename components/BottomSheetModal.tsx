@@ -173,7 +173,10 @@ export default function BottomSheetModal({
     }
   }, [onSave, saveButtonDisabled]);
 
-  const sheetHeight = SCREEN_HEIGHT * 0.9;
+  const sheetHeight = Math.min(
+    SCREEN_HEIGHT * 0.9,
+    Math.max(SCREEN_HEIGHT - (insets.top + 24), SCREEN_HEIGHT * 0.75)
+  );
 
   return (
     <Modal
@@ -214,8 +217,10 @@ export default function BottomSheetModal({
                 <View style={styles.dragHandleSpacer} />
               )}
 
-              <View style={styles.header}>
+              <View style={[styles.header, { paddingTop: Math.max(insets.top * 0.15, 10) }]}>
+
                 <Pressable
+                  testID="bottomSheetCloseButton"
                   style={styles.closeButton}
                   onPress={handleClose}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -327,6 +332,7 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 5,
   },
   titleContainer: {
     flex: 1,
