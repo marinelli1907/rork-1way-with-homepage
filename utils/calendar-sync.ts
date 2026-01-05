@@ -150,11 +150,13 @@ export async function importEventsFromCalendar(
   }
 
   try {
+    console.log(`[Calendar] Fetching events for calendar ${calendarId} from ${startDate.toISOString()} to ${endDate.toISOString()}`);
     const events = await Calendar.getEventsAsync(
       [calendarId],
       startDate,
       endDate
     );
+    console.log(`[Calendar] Found ${events.length} raw events`);
 
     const calendar = (await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT)).find(
       cal => cal.id === calendarId
@@ -171,7 +173,7 @@ export async function importEventsFromCalendar(
       calendarName: calendar?.title || 'Unknown Calendar',
     }));
 
-    console.log(`Imported ${importedEvents.length} events from calendar`);
+    console.log(`[Calendar] Processed ${importedEvents.length} events`);
     return importedEvents;
   } catch (error) {
     console.error('Failed to import events from calendar:', error);

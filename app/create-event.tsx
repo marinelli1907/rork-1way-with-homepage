@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { CalendarClock, Check, ChevronDown, MapPin, Tag, Type, X } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -121,6 +121,7 @@ export default function CreateEventScreen() {
   const [openStartPicker, setOpenStartPicker] = useState<boolean>(false);
   const [openEndPicker, setOpenEndPicker] = useState<boolean>(false);
 
+  // Web fallbacks
   const [webStartText, setWebStartText] = useState<string>(() => startAt.toISOString());
   const [webEndText, setWebEndText] = useState<string>(() => endAt.toISOString());
 
@@ -146,7 +147,6 @@ export default function CreateEventScreen() {
   }, [category]);
 
   const close = useCallback(() => {
-    console.log('[create-event] close');
     router.back();
   }, [router]);
 
@@ -171,8 +171,6 @@ export default function CreateEventScreen() {
   }, [webEndText, webStartText]);
 
   const submit = useCallback(() => {
-    console.log('[create-event] submit start', { mode, category });
-
     if (!title.trim()) {
       Alert.alert('Missing title', 'Please enter an event title.');
       titleRef.current?.focus();
@@ -210,13 +208,11 @@ export default function CreateEventScreen() {
 
     try {
       if (mode === 'edit' && params.eventId) {
-        console.log('[create-event] update event', { eventId: params.eventId, payload });
         updateEvent(params.eventId, payload);
         Alert.alert('Saved', 'Event updated.', [{ text: 'OK', onPress: close }]);
         return;
       }
 
-      console.log('[create-event] add event', payload);
       addEvent({
         userId: 'user_1',
         createdBy: 'user_1',
@@ -249,12 +245,10 @@ export default function CreateEventScreen() {
     venue,
   ]);
 
-  const kbdBehavior = useMemo(() => {
-    if (Platform.OS === 'ios') return 'padding' as const;
-    return undefined;
-  }, []);
-
-  const footerHeight = 74;
+  // Simplified keyboard behavior
+  const behavior = Platform.OS === 'ios' ? 'padding' : 'height';
+  // Adjust offset based on header height (approx 44-60 + status bar)
+  const keyboardOffset = Platform.OS === 'ios' ? 100 : 0; 
 
   return (
     <>
@@ -263,267 +257,190 @@ export default function CreateEventScreen() {
           title: screenTitle,
           headerShown: true,
           headerLeft: () => (
-            <Pressable
-              onPress={close}
-              style={styles.headerLeft}
-              accessibilityRole="button"
-              accessibilityLabel="Close"
-              testID="createEvent_close"
-            >
-              <X size={22} color={COLORS.text} />
+            <Pressable onPress={close} style={{ paddingRight: 16 }}>
+              <X size={24} color="#000" />
             </Pressable>
           ),
         }}
       />
-
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={kbdBehavior}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        testID="createEvent_kav"
+      
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={behavior} 
+        keyboardVerticalOffset={keyboardOffset}
       >
         <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={{
-            paddingBottom: footerHeight + insets.bottom + 20,
-          }}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 100 }]}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
-          testID="createEvent_scroll"
+          keyboardDismissMode="interactive"
         >
-          <View style={styles.hero}>
-            <View style={styles.heroDot} />
-            <Text style={styles.heroTitle}>{screenTitle}</Text>
-            <Text style={styles.heroSubtitle}>Add details now — you can edit anytime later.</Text>
-          </View>
-
-          <View style={styles.card}>
-            <FieldLabel icon={<Type size={18} color={COLORS.primary} />} label="Event title" />
+          {/* Title Input */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Event Title</Text>
             <TextInput
               ref={titleRef}
+              style={styles.input}
               value={title}
               onChangeText={setTitle}
-              placeholder="What's happening?"
-              placeholderTextColor={COLORS.muted}
-              style={styles.input}
+              placeholder="e.g. Dinner with Friends"
+              placeholderTextColor="#94A3B8"
               returnKeyType="next"
-              blurOnSubmit={false}
               onSubmitEditing={() => venueRef.current?.focus()}
-              editable={true}
-              autoCorrect={true}
-              autoCapitalize="sentences"
-              testID="createEvent_title"
+              blurOnSubmit={false}
             />
           </View>
 
-          <View style={styles.card}>
-            <FieldLabel icon={<Tag size={18} color={COLORS.primary} />} label="Category" />
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipsRow}
-              keyboardShouldPersistTaps="handled"
-              nestedScrollEnabled={true}
-              testID="createEvent_categoryRow"
+          {/* Category Selection */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Category</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              style={styles.categoryScroll}
+              contentContainerStyle={{ gap: 8, paddingRight: 20 }}
             >
               {CATEGORY_OPTIONS.map((opt) => {
-                const active = opt.value === category;
+                const isSelected = opt.value === category;
                 return (
                   <Pressable
                     key={opt.value}
-                    onPress={() => {
-                      console.log('[create-event] category', opt.value);
-                      setCategory(opt.value);
-                    }}
                     style={[
-                      styles.chip,
-                      active && { backgroundColor: opt.color, borderColor: opt.color },
+                      styles.categoryChip,
+                      isSelected && { backgroundColor: opt.color, borderColor: opt.color }
                     ]}
-                    testID={`createEvent_category_${opt.value}`}
+                    onPress={() => setCategory(opt.value)}
                   >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt.label}</Text>
-                    {active ? <Check size={14} color="#fff" /> : null}
+                    <Text style={[styles.categoryText, isSelected && { color: '#FFF' }]}>
+                      {opt.label}
+                    </Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
           </View>
 
-          <View style={styles.card}>
-            <FieldLabel icon={<MapPin size={18} color={COLORS.primary} />} label="Venue" />
+          {/* Venue & Address */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Location</Text>
             <TextInput
               ref={venueRef}
+              style={styles.input}
               value={venue}
               onChangeText={setVenue}
-              placeholder="e.g., Rocket Mortgage FieldHouse"
-              placeholderTextColor={COLORS.muted}
-              style={styles.input}
+              placeholder="Venue Name"
+              placeholderTextColor="#94A3B8"
               returnKeyType="next"
-              blurOnSubmit={false}
               onSubmitEditing={() => addressRef.current?.focus()}
-              editable={true}
-              autoCorrect={true}
-              autoCapitalize="words"
-              testID="createEvent_venue"
+              blurOnSubmit={false}
             />
-
             <View style={{ height: 12 }} />
-
-            <FieldLabel icon={<MapPin size={18} color={COLORS.primary} />} label="Address (optional)" />
             <TextInput
               ref={addressRef}
+              style={styles.input}
               value={address}
               onChangeText={setAddress}
-              placeholder="Street address"
-              placeholderTextColor={COLORS.muted}
-              style={styles.input}
+              placeholder="Address (Optional)"
+              placeholderTextColor="#94A3B8"
               returnKeyType="next"
-              blurOnSubmit={false}
               onSubmitEditing={() => notesRef.current?.focus()}
-              editable={true}
-              autoCorrect={true}
-              autoCapitalize="words"
-              testID="createEvent_address"
+              blurOnSubmit={false}
             />
           </View>
 
-          <View style={styles.card}>
-            <FieldLabel icon={<CalendarClock size={18} color={COLORS.primary} />} label="When" />
-
+          {/* Date & Time */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Time</Text>
             {Platform.OS === 'web' ? (
-              <>
-                <Text style={styles.webHint}>Web: edit ISO timestamps</Text>
+              <View style={{ gap: 10 }}>
                 <TextInput
+                  style={styles.input}
                   value={webStartText}
                   onChangeText={setWebStartText}
-                  placeholder="Start (ISO)"
-                  placeholderTextColor={COLORS.muted}
-                  style={styles.input}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={true}
-                  testID="createEvent_webStart"
+                  placeholder="Start ISO"
                 />
-                <View style={{ height: 12 }} />
                 <TextInput
+                  style={styles.input}
                   value={webEndText}
                   onChangeText={setWebEndText}
-                  placeholder="End (ISO)"
-                  placeholderTextColor={COLORS.muted}
-                  style={styles.input}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={true}
-                  testID="createEvent_webEnd"
+                  placeholder="End ISO"
                 />
-              </>
+              </View>
             ) : (
-              <>
-                <Pressable
-                  onPress={() => {
-                    console.log('[create-event] open start picker');
-                    setOpenStartPicker(true);
-                  }}
-                  style={styles.whenRow}
-                  testID="createEvent_startButton"
-                >
-                  <Text style={styles.whenLabel}>Starts</Text>
-                  <View style={styles.whenValueWrap}>
-                    <Text style={styles.whenValue}>{formatWhen(startAt)}</Text>
-                    <ChevronDown size={16} color={COLORS.muted} />
-                  </View>
+              <View style={styles.timeRow}>
+                <Pressable style={styles.timeButton} onPress={() => setOpenStartPicker(true)}>
+                  <Text style={styles.timeLabel}>Starts</Text>
+                  <Text style={styles.timeValue}>{formatWhen(startAt)}</Text>
                 </Pressable>
-
-                <View style={styles.divider} />
-
-                <Pressable
-                  onPress={() => {
-                    console.log('[create-event] open end picker');
-                    setOpenEndPicker(true);
-                  }}
-                  style={styles.whenRow}
-                  testID="createEvent_endButton"
-                >
-                  <Text style={styles.whenLabel}>Ends</Text>
-                  <View style={styles.whenValueWrap}>
-                    <Text style={styles.whenValue}>{formatWhen(endAt)}</Text>
-                    <ChevronDown size={16} color={COLORS.muted} />
-                  </View>
+                <View style={styles.timeDivider} />
+                <Pressable style={styles.timeButton} onPress={() => setOpenEndPicker(true)}>
+                  <Text style={styles.timeLabel}>Ends</Text>
+                  <Text style={styles.timeValue}>{formatWhen(endAt)}</Text>
                 </Pressable>
-
-                {openStartPicker ? (
-                  <DateTimePicker
-                    value={startAt}
-                    mode="datetime"
-                    display="default"
-                    onChange={(_, date) => {
-                      const keepOpen = Platform.OS === 'ios';
-                      setOpenStartPicker(keepOpen);
-                      if (!date) return;
-                      setStartAt(date);
-                      setWebStartText(date.toISOString());
-                      if (endAt.getTime() <= date.getTime()) {
-                        const bumped = new Date(date.getTime() + 2 * 60 * 60 * 1000);
-                        setEndAt(bumped);
-                        setWebEndText(bumped.toISOString());
-                      }
-                    }}
-                  />
-                ) : null}
-
-                {openEndPicker ? (
-                  <DateTimePicker
-                    value={endAt}
-                    mode="datetime"
-                    display="default"
-                    onChange={(_, date) => {
-                      const keepOpen = Platform.OS === 'ios';
-                      setOpenEndPicker(keepOpen);
-                      if (!date) return;
-                      setEndAt(date);
-                      setWebEndText(date.toISOString());
-                    }}
-                  />
-                ) : null}
-              </>
+              </View>
+            )}
+            
+            {openStartPicker && (
+              <DateTimePicker
+                value={startAt}
+                mode="datetime"
+                display="spinner"
+                onChange={(e, d) => {
+                  if (Platform.OS === 'android') setOpenStartPicker(false);
+                  if (d) {
+                    setStartAt(d);
+                    if (d > endAt) {
+                      setEndAt(new Date(d.getTime() + 2 * 3600000));
+                    }
+                  }
+                }}
+              />
+            )}
+            
+            {openEndPicker && (
+              <DateTimePicker
+                value={endAt}
+                mode="datetime"
+                display="spinner"
+                onChange={(e, d) => {
+                  if (Platform.OS === 'android') setOpenEndPicker(false);
+                  if (d) setEndAt(d);
+                }}
+              />
+            )}
+            
+            {Platform.OS === 'ios' && (openStartPicker || openEndPicker) && (
+              <Pressable 
+                style={styles.closePickerButton}
+                onPress={() => {
+                  setOpenStartPicker(false);
+                  setOpenEndPicker(false);
+                }}
+              >
+                <Text style={styles.closePickerText}>Done</Text>
+              </Pressable>
             )}
           </View>
 
-          <View style={styles.card}>
-            <FieldLabel icon={<Type size={18} color={COLORS.primary} />} label="Notes (optional)" />
+          {/* Notes */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Notes</Text>
             <TextInput
               ref={notesRef}
+              style={[styles.input, styles.textArea]}
               value={notes}
               onChangeText={setNotes}
-              placeholder="Dress code, meetup spot, anything helpful…"
-              placeholderTextColor={COLORS.muted}
-              style={[styles.input, styles.notes]}
+              placeholder="Add details..."
+              placeholderTextColor="#94A3B8"
               multiline
               textAlignVertical="top"
-              editable={true}
-              autoCorrect={true}
-              autoCapitalize="sentences"
-              testID="createEvent_notes"
             />
           </View>
+
         </ScrollView>
 
-        <View
-          style={[
-            styles.footer,
-            {
-              paddingBottom: Math.max(insets.bottom, 12),
-            },
-          ]}
-          testID="createEvent_footer"
-        >
-          <Pressable
-            onPress={submit}
-            style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.92 }]}
-            testID="createEvent_submit"
-          >
-            <Text style={styles.primaryButtonText}>{primaryCtaText}</Text>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
+          <Pressable style={styles.submitButton} onPress={submit}>
+            <Text style={styles.submitButtonText}>{primaryCtaText}</Text>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -531,176 +448,109 @@ export default function CreateEventScreen() {
   );
 }
 
-function FieldLabel({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <View style={styles.fieldLabelRow}>
-      {icon}
-      <Text style={styles.fieldLabelText}>{label}</Text>
-    </View>
-  );
-}
-
-const COLORS = {
-  bg: '#F8FAFC',
-  card: '#FFFFFF',
-  text: '#0F172A',
-  muted: '#64748B',
-  border: '#E2E8F0',
-  primary: '#0B2A4A',
-  primarySoft: '#E6F0FF',
-  danger: '#DC2626',
-} as const;
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
-  },
-  headerLeft: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  scroll: {
-    flex: 1,
-  },
-
-  hero: {
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 10,
-  },
-  heroDot: {
-    width: 44,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: COLORS.primary,
-    opacity: 0.12,
-    marginBottom: 10,
-  },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: '800' as const,
-    letterSpacing: -0.3,
-    color: COLORS.text,
-  },
-  heroSubtitle: {
-    marginTop: 6,
-    fontSize: 14,
-    lineHeight: 20,
-    color: COLORS.muted,
-  },
-
-  card: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    backgroundColor: COLORS.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: 14,
-  },
-
-  fieldLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
-  },
-  fieldLabelText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: COLORS.text,
-  },
-
-  input: {
     backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: COLORS.text,
   },
-
-  chipsRow: {
-    paddingRight: 12,
-    gap: 10,
+  content: {
+    padding: 20,
   },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: '#F1F5F9',
+  section: {
+    marginBottom: 24,
   },
-  chipText: {
+  label: {
     fontSize: 14,
-    fontWeight: '700' as const,
-    color: COLORS.muted,
+    fontWeight: '600',
+    color: '#0F172A',
+    marginBottom: 8,
+    marginLeft: 4,
   },
-  chipTextActive: {
-    color: '#FFFFFF',
-  },
-
-  whenRow: {
-    paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  whenLabel: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: COLORS.muted,
-  },
-  whenValueWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  whenValue: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: COLORS.text,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: COLORS.border,
-  },
-
-  notes: {
-    minHeight: 96,
-  },
-
-  webHint: {
-    fontSize: 12,
-    color: COLORS.muted,
-    marginBottom: 10,
-  },
-
-  footer: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+  input: {
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingTop: 10,
+    paddingVertical: 14,
+    fontSize: 16,
+    color: '#0F172A',
   },
-  primaryButton: {
-    backgroundColor: '#E31937',
-    borderRadius: 16,
-    paddingVertical: 16,
-    alignItems: 'center',
+  textArea: {
+    minHeight: 100,
+    paddingTop: 14,
+  },
+  categoryScroll: {
+    flexGrow: 0,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    marginRight: 8,
+  },
+  categoryText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  timeRow: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  timeButton: {
+    flex: 1,
+    padding: 16,
     justifyContent: 'center',
   },
-  primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '800' as const,
+  timeDivider: {
+    width: 1,
+    backgroundColor: '#E2E8F0',
+  },
+  timeLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  timeValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#0F172A',
+  },
+  closePickerButton: {
+    backgroundColor: '#F1F5F9',
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 8,
+    borderRadius: 8,
+  },
+  closePickerText: {
+    color: '#0F172A',
+    fontWeight: '600',
+  },
+  footer: {
+    backgroundColor: '#FFFFFF',
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  submitButton: {
+    backgroundColor: '#E31937',
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  submitButtonText: {
     color: '#FFFFFF',
-    letterSpacing: 0.2,
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

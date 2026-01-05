@@ -628,8 +628,11 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       }
 
       const startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 1); // Look back 1 month
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 6);
+      endDate.setMonth(endDate.getMonth() + 12); // Look ahead 12 months
+
+      console.log(`[Import] Starting calendar import... Range: ${startDate.toISOString()} - ${endDate.toISOString()}`);
 
       const categoryColors: Partial<Record<EventCategory, string>> = {
         sports: '#1E3A8A',
@@ -651,6 +654,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       let totalImported = 0;
 
       for (const calendar of calendars) {
+        console.log(`[Import] checking calendar: ${calendar.title} (ID: ${calendar.id})`);
         const importedEvents = await importEventsFromCalendar(
           calendar.id,
           startDate,
@@ -659,7 +663,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
 
         for (const importedEvent of importedEvents) {
           const existingEvent = events.find(
-            e => e.title === importedEvent.title && e.startISO === importedEvent.startISO
+            e => (e.title === importedEvent.title && e.startISO === importedEvent.startISO) || e.calendarEventId === importedEvent.id
           );
 
           if (!existingEvent) {
@@ -685,10 +689,14 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
 
             events.push(newEvent);
             totalImported++;
+            console.log(`[Import] Added new event: ${newEvent.title}`);
+          } else {
+             // console.log(`[Import] Skipped existing event: ${importedEvent.title}`);
           }
         }
       }
 
+      console.log(`[Import] Total imported: ${totalImported}`);
       if (totalImported > 0) {
         await saveEvents([...events]);
       }
