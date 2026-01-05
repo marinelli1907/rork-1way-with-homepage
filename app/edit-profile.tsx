@@ -86,16 +86,22 @@ export default function EditProfileScreen() {
       }
 
       const data = await response.json();
-      console.log('Response data keys:', Object.keys(data));
+      console.log('Response data:', JSON.stringify(data, null, 2));
       
-      if (data.image && data.image.base64Data) {
-        const imageUri = `data:${data.image.mimeType};base64,${data.image.base64Data}`;
-        console.log('Car image generated successfully, size:', data.size);
-        setCarImageUrl(imageUri);
-        Alert.alert('Success', 'Car image generated successfully!');
+      if (data && typeof data === 'object' && data.image) {
+        const imageData = data.image;
+        if (imageData.base64Data && imageData.mimeType) {
+          const imageUri = `data:${imageData.mimeType};base64,${imageData.base64Data}`;
+          console.log('Car image generated successfully');
+          setCarImageUrl(imageUri);
+          Alert.alert('Success', 'Car image generated successfully!');
+        } else {
+          console.error('Invalid image structure:', imageData);
+          throw new Error('Missing base64Data or mimeType in response');
+        }
       } else {
-        console.error('Invalid response format:', data);
-        throw new Error('Invalid response format from server');
+        console.error('Invalid response format. Expected {image: {...}}, got:', typeof data, data);
+        throw new Error(`Invalid response format from server`);
       }
     } catch (error) {
       console.error('Failed to generate car image:', error);
