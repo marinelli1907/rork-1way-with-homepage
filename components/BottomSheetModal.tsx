@@ -31,6 +31,7 @@ interface BottomSheetModalProps {
   children: React.ReactNode;
   isDirty?: boolean;
   showSaveButton?: boolean;
+  enableSwipeToClose?: boolean;
 }
 
 export default function BottomSheetModal({
@@ -44,6 +45,7 @@ export default function BottomSheetModal({
   children,
   isDirty = false,
   showSaveButton = true,
+  enableSwipeToClose = false,
 }: BottomSheetModalProps) {
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -84,16 +86,19 @@ export default function BottomSheetModal({
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => enableSwipeToClose,
       onMoveShouldSetPanResponder: (_, gestureState) => {
+        if (!enableSwipeToClose) return false;
         return gestureState.dy > 5;
       },
       onPanResponderMove: (_, gestureState) => {
+        if (!enableSwipeToClose) return;
         if (gestureState.dy > 0) {
           translateY.setValue(gestureState.dy);
         }
       },
       onPanResponderRelease: (_, gestureState) => {
+        if (!enableSwipeToClose) return;
         if (gestureState.dy > DRAG_THRESHOLD) {
           handleClose();
         } else {
@@ -201,9 +206,13 @@ export default function BottomSheetModal({
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
           >
             <View style={styles.sheet}>
-              <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
-                <View style={styles.dragHandle} />
-              </View>
+              {enableSwipeToClose ? (
+                <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
+                  <View style={styles.dragHandle} />
+                </View>
+              ) : (
+                <View style={styles.dragHandleSpacer} />
+              )}
 
               <View style={styles.header}>
                 <Pressable
@@ -294,6 +303,9 @@ const styles = StyleSheet.create({
   dragHandleContainer: {
     alignItems: 'center',
     paddingVertical: 16,
+  },
+  dragHandleSpacer: {
+    height: 20,
   },
   dragHandle: {
     width: 40,
