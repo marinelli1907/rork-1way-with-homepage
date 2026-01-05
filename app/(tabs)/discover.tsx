@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   },
   adHeaderWrapper: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: 60,
     paddingBottom: 12,
     backgroundColor: '#FFFFFF',
   },
