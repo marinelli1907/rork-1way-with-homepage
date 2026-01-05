@@ -31,6 +31,8 @@ interface SmartAddressInputProps {
   onAddressChange: (address: AddressComponents) => void;
   placeholder?: string;
   style?: any;
+  hideDetails?: boolean;
+  testIDPrefix?: string;
 }
 
 const US_CITIES = [
@@ -130,6 +132,8 @@ export default function SmartAddressInput({
   onAddressChange,
   placeholder = 'Start typing an address...',
   style,
+  hideDetails = false,
+  testIDPrefix = 'smartAddress',
 }: SmartAddressInputProps) {
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
@@ -206,6 +210,7 @@ export default function SmartAddressInput({
           placeholder={placeholder}
           placeholderTextColor="#94A3B8"
           autoCapitalize="words"
+          testID={`${testIDPrefix}Input`}
         />
         {isSearching && (
           <ActivityIndicator size="small" color="#1E3A8A" style={styles.loader} />
@@ -217,6 +222,7 @@ export default function SmartAddressInput({
           style={styles.suggestionsContainer}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
+          testID={`${testIDPrefix}Suggestions`}
         >
           {suggestions.map((suggestion) => (
             <Pressable
@@ -233,7 +239,7 @@ export default function SmartAddressInput({
         </ScrollView>
       )}
 
-      {value.street && value.city && value.state && value.zip && (
+      {!hideDetails && value.street && value.city && value.state && value.zip && (
         <View style={styles.detailsContainer}>
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Street:</Text>

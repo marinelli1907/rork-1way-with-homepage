@@ -3,11 +3,10 @@ import {
   MapPin,
   Navigation,
   Clock,
-  Star,
   ArrowRight,
   Users,
   Zap,
-  RefreshCw,
+  LocateFixed,
   ArrowUpDown,
 } from 'lucide-react-native';
 import React, { useState, useEffect } from 'react';
@@ -297,7 +296,7 @@ export default function HomeScreen() {
                   disabled={isLoadingLocation}
                   testID="homeRefreshLocation"
                 >
-                  <RefreshCw
+                  <LocateFixed
                     size={18}
                     color="#1E3A8A"
                     strokeWidth={2.5}
@@ -432,49 +431,6 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <View style={styles.driversSection}>
-          <View style={styles.driversSectionHeader}>
-            <Text style={styles.driversSectionTitle}>Available Drivers</Text>
-            <View style={styles.liveIndicator}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>LIVE</Text>
-            </View>
-          </View>
-
-          {onlineDrivers.length === 0 ? (
-            <View style={styles.noDrivers}>
-              <Text style={styles.noDriversText}>No drivers available</Text>
-            </View>
-          ) : (
-            onlineDrivers.slice(0, 5).map((driver, index) => (
-              <View key={driver.id} style={styles.driverCard}>
-                <View style={styles.driverRank}>
-                  <Text style={styles.driverRankText}>#{index + 1}</Text>
-                </View>
-
-                <Image source={{ uri: driver.avatar }} style={styles.driverAvatar} />
-
-                <View style={styles.driverInfo}>
-                  <Text style={styles.driverName}>{driver.name}</Text>
-                  <View style={styles.driverMeta}>
-                    <Star size={12} color="#F59E0B" fill="#F59E0B" />
-                    <Text style={styles.driverRating}>{driver.rating}</Text>
-                    <Text style={styles.driverTrips}>• {driver.totalTrips} trips</Text>
-                  </View>
-                  <Text style={styles.driverVehicle}>
-                    {driver.vehicleColor} {driver.vehicleBrand} {driver.vehicleModel}
-                  </Text>
-                </View>
-
-                <View style={styles.driverStatus}>
-                  <Clock size={16} color="#059669" />
-                  <Text style={styles.driverETA}>{driver.estimatedArrival} min</Text>
-                  <Text style={styles.driverDistance}>{driver.distance.toFixed(1)} mi</Text>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
 
         <View style={styles.quickActions}>
           <Pressable
@@ -782,126 +738,6 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700' as const,
     color: '#FFFFFF',
-  },
-  driversSection: {
-    marginBottom: 24,
-    paddingHorizontal: 20,
-  },
-  driversSectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  driversSectionTitle: {
-    fontSize: 20,
-    fontWeight: '700' as const,
-    color: '#1E293B',
-  },
-  liveIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FEF2F2',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#DC2626',
-  },
-  liveText: {
-    fontSize: 11,
-    fontWeight: '800' as const,
-    color: '#DC2626',
-    letterSpacing: 0.5,
-  },
-  noDrivers: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  noDriversText: {
-    fontSize: 15,
-    color: '#64748B',
-  },
-  driverCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  driverRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#EFF6FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  driverRankText: {
-    fontSize: 13,
-    fontWeight: '800' as const,
-    color: '#1E3A8A',
-  },
-  driverAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#E2E8F0',
-  },
-  driverInfo: {
-    flex: 1,
-  },
-  driverName: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    color: '#1E293B',
-    marginBottom: 2,
-  },
-  driverMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 3,
-  },
-  driverRating: {
-    fontSize: 13,
-    fontWeight: '600' as const,
-    color: '#1E293B',
-  },
-  driverTrips: {
-    fontSize: 12,
-    color: '#64748B',
-  },
-  driverVehicle: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500' as const,
-  },
-  driverStatus: {
-    alignItems: 'flex-end',
-    gap: 2,
-  },
-  driverETA: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: '#059669',
-  },
-  driverDistance: {
-    fontSize: 11,
-    color: '#64748B',
-    fontWeight: '500' as const,
   },
   quickActions: {
     flexDirection: 'row',

@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
 } from 'react-native';
 import { Home, Briefcase, MapPin, Plus, X } from 'lucide-react-native';
+import SmartAddressInput from '@/components/SmartAddressInput';
 import {
   SavedAddress,
   loadSavedAddresses,
@@ -32,9 +33,14 @@ export default function MyAddresses({
 }: MyAddressesProps) {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newLabel, setNewLabel] = useState('');
-  const [newAddress, setNewAddress] = useState('');
+  const [showAddForm, setShowAddForm] = useState<boolean>(false);
+  const [newLabel, setNewLabel] = useState<string>('');
+  const [newAddress, setNewAddress] = useState<{ street: string; city: string; state: string; zip: string }>({
+    street: '',
+    city: '',
+    state: '',
+    zip: '',
+  });
 
   useEffect(() => {
     loadAddresses();
@@ -53,22 +59,30 @@ export default function MyAddresses({
   };
 
   const handleAddAddress = async () => {
-    if (!newLabel.trim() || !newAddress.trim()) {
-      Alert.alert('Error', 'Please enter both label and address');
+    const label = newLabel.trim();
+    const street = newAddress.street.trim();
+    const city = newAddress.city.trim();
+    const state = newAddress.state.trim();
+    const zip = newAddress.zip.trim();
+
+    if (!label || !street || !city || !state || !zip) {
+      Alert.alert('Error', 'Please enter label, street, city, state, and ZIP');
       return;
     }
 
+    const line1 = `${street}, ${city}, ${state} ${zip}`.trim();
+
     try {
       const newAddr = await addSavedAddress({
-        label: newLabel.trim(),
-        line1: newAddress.trim(),
+        label,
+        line1,
         lat: 41.4993 + Math.random() * 0.1,
         lng: -81.6944 + Math.random() * 0.1,
       });
 
       setAddresses((prev) => [...prev, newAddr]);
       setNewLabel('');
-      setNewAddress('');
+      setNewAddress({ street: '', city: '', state: '', zip: '' });
       setShowAddForm(false);
       Alert.alert('Success', 'Address added successfully');
     } catch {
@@ -93,7 +107,7 @@ export default function MyAddresses({
           onPress={() => {
             setShowAddForm(false);
             setNewLabel('');
-            setNewAddress('');
+            setNewAddress({ street: '', city: '', state: '', zip: '' });
           }}
           testID="addressesCloseAddForm"
         >
@@ -108,15 +122,71 @@ export default function MyAddresses({
         placeholderTextColor="#94A3B8"
         testID="addressesNewLabel"
       />
-      <TextInput
-        style={[styles.addFormInput, styles.addFormInputMultiline]}
+
+      <SmartAddressInput
         value={newAddress}
-        onChangeText={setNewAddress}
-        placeholder="Street address"
-        placeholderTextColor="#94A3B8"
-        multiline
-        testID="addressesNewAddress"
+        onAddressChange={(addr) => setNewAddress(addr)}
+        placeholder="Search address"
+        hideDetails
+        testIDPrefix="addressesLookup"
+        style={styles.lookupWrap}
       />
+
+      <View style={styles.fieldGrid}>
+        <View style={styles.fieldColFull}>
+          <Text style={styles.fieldLabel}>Street</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={newAddress.street}
+            onChangeText={(t) => setNewAddress((prev) => ({ ...prev, street: t }))}
+            placeholder="123 Main St"
+            placeholderTextColor="#94A3B8"
+            autoCapitalize="words"
+            testID="addressesStreet"
+          />
+        </View>
+
+        <View style={styles.fieldCol}>
+          <Text style={styles.fieldLabel}>City</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={newAddress.city}
+            onChangeText={(t) => setNewAddress((prev) => ({ ...prev, city: t }))}
+            placeholder="City"
+            placeholderTextColor="#94A3B8"
+            autoCapitalize="words"
+            testID="addressesCity"
+          />
+        </View>
+
+        <View style={styles.fieldCol}>
+          <Text style={styles.fieldLabel}>State</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={newAddress.state}
+            onChangeText={(t) => setNewAddress((prev) => ({ ...prev, state: t.toUpperCase() }))}
+            placeholder="OH"
+            placeholderTextColor="#94A3B8"
+            autoCapitalize="characters"
+            maxLength={2}
+            testID="addressesState"
+          />
+        </View>
+
+        <View style={styles.fieldColFull}>
+          <Text style={styles.fieldLabel}>ZIP</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={newAddress.zip}
+            onChangeText={(t) => setNewAddress((prev) => ({ ...prev, zip: t.replace(/[^0-9]/g, '') }))}
+            placeholder="44115"
+            placeholderTextColor="#94A3B8"
+            keyboardType="number-pad"
+            maxLength={10}
+            testID="addressesZip"
+          />
+        </View>
+      </View>
       <Pressable style={styles.saveButton} onPress={handleAddAddress} testID="addressesSaveNew">
         <Text style={styles.saveButtonText}>Save Address</Text>
       </Pressable>
@@ -337,10 +407,7 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
-  addFormInputMultiline: {
-    minHeight: 70,
-    textAlignVertical: 'top' as const,
-  },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.35)',
@@ -363,9 +430,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 8,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#1E293B',
+  },
+  lookupWrap: {
+    zIndex: 5,
+  },
+  fieldGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  fieldCol: {
+    width: '48%',
+    gap: 6,
+  },
+  fieldColFull: {
+    width: '100%',
+    gap: 6,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: '800' as const,
+    color: '#64748B',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase' as const,
+  },
+  fieldInput: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontSize: 14,
     color: '#1E293B',
   },
