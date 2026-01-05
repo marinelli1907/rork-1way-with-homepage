@@ -124,10 +124,10 @@ export default function CreateEventScreen() {
   const [webStartText, setWebStartText] = useState<string>(() => startAt.toISOString());
   const [webEndText, setWebEndText] = useState<string>(() => endAt.toISOString());
 
-  const titleRef = useRef<TextInput | null>(null);
-  const venueRef = useRef<TextInput | null>(null);
-  const addressRef = useRef<TextInput | null>(null);
-  const notesRef = useRef<TextInput | null>(null);
+  const titleRef = useRef<TextInput>(null);
+  const venueRef = useRef<TextInput>(null);
+  const addressRef = useRef<TextInput>(null);
+  const notesRef = useRef<TextInput>(null);
 
   const screenTitle = useMemo(() => {
     if (mode === 'edit') return 'Edit Event';
@@ -301,12 +301,10 @@ export default function CreateEventScreen() {
           <View style={styles.card}>
             <FieldLabel icon={<Type size={18} color={COLORS.primary} />} label="Event title" />
             <TextInput
-              ref={(r) => {
-                titleRef.current = r;
-              }}
+              ref={titleRef}
               value={title}
               onChangeText={setTitle}
-              placeholder="What’s happening?"
+              placeholder="What's happening?"
               placeholderTextColor={COLORS.muted}
               style={styles.input}
               returnKeyType="next"
@@ -351,9 +349,7 @@ export default function CreateEventScreen() {
           <View style={styles.card}>
             <FieldLabel icon={<MapPin size={18} color={COLORS.primary} />} label="Venue" />
             <TextInput
-              ref={(r) => {
-                venueRef.current = r;
-              }}
+              ref={venueRef}
               value={venue}
               onChangeText={setVenue}
               placeholder="e.g., Rocket Mortgage FieldHouse"
@@ -369,9 +365,7 @@ export default function CreateEventScreen() {
 
             <FieldLabel icon={<MapPin size={18} color={COLORS.primary} />} label="Address (optional)" />
             <TextInput
-              ref={(r) => {
-                addressRef.current = r;
-              }}
+              ref={addressRef}
               value={address}
               onChangeText={setAddress}
               placeholder="Street address"
@@ -487,9 +481,7 @@ export default function CreateEventScreen() {
           <View style={styles.card}>
             <FieldLabel icon={<Type size={18} color={COLORS.primary} />} label="Notes (optional)" />
             <TextInput
-              ref={(r) => {
-                notesRef.current = r;
-              }}
+              ref={notesRef}
               value={notes}
               onChangeText={setNotes}
               placeholder="Dress code, meetup spot, anything helpful…"
