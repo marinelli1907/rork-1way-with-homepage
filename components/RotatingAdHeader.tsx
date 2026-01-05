@@ -61,7 +61,8 @@ export default function RotatingAdHeader() {
     }, ROTATION_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [fadeAnim]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const currentAd = ADS[currentAdIndex];
 

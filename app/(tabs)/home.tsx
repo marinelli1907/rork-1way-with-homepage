@@ -10,7 +10,7 @@ import {
   RefreshCw,
   ArrowUpDown,
 } from 'lucide-react-native';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -133,6 +133,37 @@ export default function HomeScreen() {
   const [onlineDrivers, setOnlineDrivers] = useState(AVAILABLE_DRIVERS.filter(d => d.isAvailable));
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
+  const getCurrentLocation = useCallback(async () => {
+    setIsLoadingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Location permission denied');
+        setPickupAddress('Enter your pickup location');
+        setIsLoadingLocation(false);
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      const [address] = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+
+      if (address) {
+        const formattedAddress = `${address.street || ''} ${address.streetNumber || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
+        setPickupAddress(formattedAddress || 'Current location');
+      } else {
+        setPickupAddress('Current location');
+      }
+    } catch (error) {
+      console.error('Failed to get location:', error);
+      setPickupAddress('Enter your pickup location');
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  }, []);
+
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -152,7 +183,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     getCurrentLocation();
-  }, []);
+  }, [getCurrentLocation]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -190,37 +221,6 @@ export default function HomeScreen() {
 
     return () => clearTimeout(timer);
   }, [pickupAddress, dropoffAddress]);
-
-  const getCurrentLocation = async () => {
-    setIsLoadingLocation(true);
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Location permission denied');
-        setPickupAddress('Enter your pickup location');
-        setIsLoadingLocation(false);
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({});
-      const [address] = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-
-      if (address) {
-        const formattedAddress = `${address.street || ''} ${address.streetNumber || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
-        setPickupAddress(formattedAddress || 'Current location');
-      } else {
-        setPickupAddress('Current location');
-      }
-    } catch (error) {
-      console.error('Failed to get location:', error);
-      setPickupAddress('Enter your pickup location');
-    } finally {
-      setIsLoadingLocation(false);
-    }
-  };
 
   const swapAddresses = () => {
     const temp = pickupAddress;
