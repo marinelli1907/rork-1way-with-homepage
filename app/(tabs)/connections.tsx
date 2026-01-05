@@ -25,7 +25,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useProfiles } from '@/providers/ProfilesProvider';
-import { Contact, ContactSyncStatus, WorkGroup } from '@/types';
+import { Contact, WorkGroup } from '@/types';
 import {
   syncPhoneContacts,
   syncGmailContacts,
@@ -43,7 +43,7 @@ import {
   syncDiscordContacts,
 } from '@/utils/contact-sync';
 import { seedFakeProfiles } from '@/utils/seed-profiles';
-import RotatingAdHeader from '@/components/RotatingAdHeader';
+import ScreenShell from '@/components/ScreenShell';
 
 type TabType = 'connections' | 'groups' | 'contacts';
 
@@ -579,11 +579,7 @@ export default function ConnectionsScreen() {
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
-        <View style={styles.adHeaderContainer}>
-          <RotatingAdHeader />
-        </View>
-
+      <ScreenShell scrollable={false}>
         {renderSyncButtons()}
 
         <View style={styles.searchContainer}>
@@ -689,7 +685,7 @@ export default function ConnectionsScreen() {
             </View>
           )}
         </ScrollView>
-      </View>
+      </ScreenShell>
     </TouchableWithoutFeedback>
   );
 }
@@ -697,12 +693,6 @@ export default function ConnectionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  adHeaderContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
     backgroundColor: '#F8FAFC',
   },
   syncSection: {

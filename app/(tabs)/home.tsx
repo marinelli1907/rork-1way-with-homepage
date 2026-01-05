@@ -16,18 +16,16 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ScrollView,
   TextInput,
   ActivityIndicator,
   Image,
   Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { calculateRideQuote } from '@/utils/pricing';
 import * as Location from 'expo-location';
 import MyAddresses from '@/components/MyAddresses';
 import { SavedAddress } from '@/utils/addresses';
-import RotatingAdHeader from '@/components/RotatingAdHeader';
+import ScreenShell from '@/components/ScreenShell';
 
 interface Driver {
   id: string;
@@ -256,15 +254,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.adHeaderWrapper}>
-          <RotatingAdHeader />
-        </View>
+    <ScreenShell>
 
         <View style={styles.networkStatus}>
           <View style={styles.networkBadge}>
@@ -438,8 +428,7 @@ export default function HomeScreen() {
             <Text style={styles.quickActionSubtitle}>Past trips</Text>
           </Pressable>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+    </ScreenShell>
   );
 }
 
@@ -453,11 +442,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 30,
-  },
-  adHeaderWrapper: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
   },
   networkStatus: {
     flexDirection: 'row',

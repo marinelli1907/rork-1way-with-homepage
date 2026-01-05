@@ -1,6 +1,5 @@
 import { Send } from 'lucide-react-native';
 import React, { useState, useRef, useEffect } from 'react';
-import RotatingAdHeader from '@/components/RotatingAdHeader';
 import {
   View,
   Text,
@@ -245,30 +244,26 @@ export default function AiUnoScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <View style={[styles.chatHeader, { paddingTop: insets.top + 16 }]}>
-        <View style={styles.headerLeft}>
-          <View style={styles.unoAvatar}>
-            <Text style={styles.unoAvatarText}>U</Text>
-          </View>
-          <View>
-            <Text style={styles.headerTitle}>Uno</Text>
-            <Text style={styles.headerSubtitle}>Your 1Way Concierge</Text>
-          </View>
-        </View>
-      </View>
-
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.messagesContainer}
-        contentContainerStyle={styles.messagesContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <RotatingAdHeader />
+      <View style={[styles.mainContent, { paddingTop: insets.top }]}>
+        <ScrollView
+          ref={scrollViewRef}
+          style={styles.messagesContainer}
+          contentContainerStyle={styles.messagesContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         
-        {messages.length === 0 && (
+          <View style={styles.aiIntroCard}>
+            <View style={styles.unoAvatarLarge}>
+              <Text style={styles.unoAvatarTextLarge}>U</Text>
+            </View>
+            <Text style={styles.aiIntroTitle}>Uno</Text>
+            <Text style={styles.aiIntroSubtitle}>Your 1Way Concierge</Text>
+          </View>
+
+          {messages.length === 0 && (
           <View style={styles.welcomeContainer}>
             <Text style={styles.welcomeText}>
               👋 Hi! I&apos;m Uno, your personal concierge.
@@ -303,9 +298,9 @@ export default function AiUnoScreen() {
               </Pressable>
             </View>
           </View>
-        )}
+          )}
 
-        {messages.map((msg) => (
+          {messages.map((msg) => (
           <View
             key={msg.id}
             style={[
@@ -367,16 +362,17 @@ export default function AiUnoScreen() {
               return null;
             })}
           </View>
-        ))}
+          ))}
 
-        {error && (
+          {error && (
           <View style={styles.errorBubble}>
             <Text style={styles.errorText}>Oops, something went wrong. Try again?</Text>
           </View>
-        )}
-      </ScrollView>
+          )}
+        </ScrollView>
+      </View>
 
-      <View style={styles.inputContainer}>
+      <View style={[styles.inputContainer, { paddingBottom: insets.bottom }]}>
           <TextInput
             style={styles.input}
             value={input}
@@ -409,54 +405,60 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  chatHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  mainContent: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  aiIntroCard: {
     alignItems: 'center',
+    paddingVertical: 24,
     paddingHorizontal: 20,
-    paddingVertical: 16,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  unoAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  unoAvatarLarge: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#1E3A8A',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  unoAvatarText: {
-    fontSize: 20,
+  unoAvatarTextLarge: {
+    fontSize: 32,
     fontWeight: '700' as const,
     color: '#FFFFFF',
   },
-  headerTitle: {
-    fontSize: 18,
+  aiIntroTitle: {
+    fontSize: 24,
     fontWeight: '700' as const,
     color: '#1E293B',
+    marginBottom: 4,
   },
-  headerSubtitle: {
-    fontSize: 14,
+  aiIntroSubtitle: {
+    fontSize: 15,
     color: '#64748B',
   },
   messagesContainer: {
     flex: 1,
   },
   messagesContent: {
-    padding: 16,
+    paddingHorizontal: 16,
     paddingBottom: 120,
     gap: 16,
   },
   welcomeContainer: {
     alignItems: 'center',
-    paddingVertical: 32,
+    paddingVertical: 16,
     gap: 16,
     paddingHorizontal: 20,
   },

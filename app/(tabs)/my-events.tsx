@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Calendar, Plus, Edit, Copy, Trash2, CheckSquare, Square, Download, List, History } from 'lucide-react-native';
-import RotatingAdHeader from '@/components/RotatingAdHeader';
+import ScreenShell from '@/components/ScreenShell';
 import React, { useState } from 'react';
 import {
   View,
@@ -318,11 +318,8 @@ export default function MyEventsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.adHeaderWrapper}>
-        <RotatingAdHeader />
-      </View>
-      <View style={[styles.toolbarContainer, { paddingTop: 12 }]}>
+    <ScreenShell scrollable={false}>
+      <View style={styles.toolbarContainer}>
         <View style={styles.toolbarButtons}>
           <Pressable
             style={styles.toolbarButton}
@@ -427,7 +424,7 @@ export default function MyEventsScreen() {
           <Plus size={28} color="#FFFFFF" strokeWidth={2} />
         </Pressable>
       </View>
-    </View>
+    </ScreenShell>
   );
 }
 
@@ -444,12 +441,6 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#64748B',
-  },
-  adHeaderWrapper: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 12,
-    backgroundColor: '#FFFFFF',
   },
   toolbarContainer: {
     flexDirection: 'column',

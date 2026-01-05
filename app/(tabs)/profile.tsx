@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ScrollView,
   Alert,
   Image,
 } from 'react-native';
@@ -29,7 +28,7 @@ import {
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
-import RotatingAdHeader from '@/components/RotatingAdHeader';
+import ScreenShell from '@/components/ScreenShell';
 
 type MenuItem = {
   icon: typeof User;
@@ -263,13 +262,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <RotatingAdHeader />
+    <ScreenShell>
 
         <View style={styles.userSummary}>
           <View style={styles.avatarContainer}>
@@ -361,8 +354,7 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
-    </View>
+    </ScreenShell>
   );
 }
 
@@ -371,11 +363,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  scrollView: {
-    flex: 1,
-  },
   scrollContent: {
-    paddingTop: 24,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },

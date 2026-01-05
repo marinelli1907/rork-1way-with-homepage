@@ -141,14 +141,14 @@ export default function CreateEventScreen() {
       />
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
-          style={styles.container}
+          style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="always"
-          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           testID="createEvent_scroll"
         >
         <View style={styles.section}>
@@ -321,19 +321,22 @@ export default function CreateEventScreen() {
           />
         </View>
 
-        <Pressable
-          style={styles.submitButton}
-          onPress={() => {
-            Keyboard.dismiss();
-            handleSubmit();
-          }}
-          testID="createEvent_submitButton"
-        >
-          <Text style={styles.submitButtonText}>
-            {mode === 'edit' ? 'Save Changes' : mode === 'duplicate' ? 'Duplicate Event' : 'Add Event'}
-          </Text>
-        </Pressable>
-      </ScrollView>
+        </ScrollView>
+        
+        <View style={styles.buttonFooter}>
+          <Pressable
+            style={styles.submitButton}
+            onPress={() => {
+              Keyboard.dismiss();
+              handleSubmit();
+            }}
+            testID="createEvent_submitButton"
+          >
+            <Text style={styles.submitButtonText}>
+              {mode === 'edit' ? 'Save Changes' : mode === 'duplicate' ? 'Duplicate Event' : 'Add Event'}
+            </Text>
+          </Pressable>
+        </View>
       </KeyboardAvoidingView>
     </>
   );
@@ -344,15 +347,19 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  keyboardAvoid: {
-    flex: 1,
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: 20,
-    paddingBottom: 120,
+    paddingBottom: 20,
+  },
+  buttonFooter: {
+    padding: 20,
+    paddingBottom: 32,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
   },
   section: {
     marginBottom: 24,
@@ -473,7 +480,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 12,
+    shadowColor: '#E31937',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   submitButtonText: {
     fontSize: 17,
