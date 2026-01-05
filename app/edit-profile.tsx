@@ -56,34 +56,54 @@ export default function EditProfileScreen() {
 
     setIsGenerating(true);
     try {
+      console.log('Generating car image:', { carYear, carColor, carMake, carModel });
+      
+      const prompt = `A high-quality, professional studio photograph of a ${carYear} ${carColor} ${carMake} ${carModel}. The car should be shown from a 3/4 front angle view, positioned on a clean white studio background. Perfect lighting, photorealistic, detailed, modern automotive photography style. The car should be clean and well-maintained.`;
+      
       const response = await fetch('https://toolkit.rork.com/images/generate/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          prompt: `A high-quality, professional studio photograph of a ${carYear} ${carColor} ${carMake} ${carModel}. The car should be shown from a 3/4 front angle view, positioned on a clean white studio background. Perfect lighting, photorealistic, detailed, modern automotive photography style. The car should be clean and well-maintained.`,
+          prompt,
           size: '1536x1024',
         }),
       });
 
+      console.log('Response status:', response.status);
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Image generation failed:', errorText);
-        throw new Error('Failed to generate image');
+        let errorMessage = `Server responded with status ${response.status}`;
+        try {
+          const errorText = await response.text();
+          console.error('Image generation error response:', errorText);
+          errorMessage = errorText || errorMessage;
+        } catch (e) {
+          console.error('Could not read error response:', e);
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      console.log('Response data keys:', Object.keys(data));
+      
       if (data.image && data.image.base64Data) {
         const imageUri = `data:${data.image.mimeType};base64,${data.image.base64Data}`;
+        console.log('Car image generated successfully, size:', data.size);
         setCarImageUrl(imageUri);
         Alert.alert('Success', 'Car image generated successfully!');
       } else {
-        throw new Error('Invalid response format');
+        console.error('Invalid response format:', data);
+        throw new Error('Invalid response format from server');
       }
     } catch (error) {
       console.error('Failed to generate car image:', error);
-      Alert.alert('Error', 'Failed to generate car image. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert(
+        'Generation Failed', 
+        `Could not generate car image: ${errorMessage}. Please check your internet connection and try again.`
+      );
     } finally {
       setIsGenerating(false);
     }
