@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MapPin, Star, Clock, DollarSign, User, ArrowRight, CheckCircle, Users, Gavel, Zap } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -145,6 +145,8 @@ export default function SelectDriverScreen() {
     pickupAddress: string;
     dropoffAddress: string;
     pickupTime: string;
+    preselect?: string;
+    quickDriverId?: string;
   }>();
 
   const [selectedOption, setSelectedOption] = useState<PricingOption>(null);
@@ -175,7 +177,8 @@ export default function SelectDriverScreen() {
     }
   }, [event]);
 
-  const loadDrivers = async () => {
+
+  const loadDrivers = useCallback(async () => {
     setLoading(true);
     setGeneratingVehicleImages(true);
     
@@ -228,7 +231,17 @@ export default function SelectDriverScreen() {
       );
       
       setDrivers(driversWithImages);
-      
+
+      const quickDriverId = (params.quickDriverId ?? '').toString();
+      if (quickDriverId) {
+        const found = driversWithImages.find(d => d.id === quickDriverId);
+        if (found) {
+          console.log('[select-driver] quick driver selected:', found.name);
+          setSelectedDriver(found);
+          return;
+        }
+      }
+
       if (selectedOption === 'app_price' && driversWithImages.length > 0) {
         const nearestDriver = driversWithImages[0];
         setSelectedDriver(nearestDriver);
@@ -237,7 +250,17 @@ export default function SelectDriverScreen() {
       console.error('Failed to load drivers:', error);
       const sortedDrivers = [...MOCK_DRIVERS].sort((a, b) => a.distance - b.distance);
       setDrivers(sortedDrivers);
-      
+
+      const quickDriverId = (params.quickDriverId ?? '').toString();
+      if (quickDriverId) {
+        const found = sortedDrivers.find(d => d.id === quickDriverId);
+        if (found) {
+          console.log('[select-driver] quick driver selected (fallback):', found.name);
+          setSelectedDriver(found);
+          return;
+        }
+      }
+
       if (selectedOption === 'app_price' && sortedDrivers.length > 0) {
         const nearestDriver = sortedDrivers[0];
         setSelectedDriver(nearestDriver);
@@ -246,7 +269,7 @@ export default function SelectDriverScreen() {
       setLoading(false);
       setGeneratingVehicleImages(false);
     }
-  };
+  }, [params.quickDriverId, selectedOption]);
 
   const handleDriverSelection = (driver: Driver) => {
     setSelectedDriver(driver);
@@ -444,15 +467,27 @@ export default function SelectDriverScreen() {
     }
   };
 
-  const proceedWithOption = async (option: PricingOption) => {
+  const proceedWithOption = useCallback(async (option: PricingOption) => {
     setSelectedOption(option);
-    
+
     if (option === 'app_price' || option === 'select_driver') {
       await loadDrivers();
     } else if (option === 'name_price' || option === 'receive_bids') {
       setShowBidModal(true);
     }
-  };
+  }, [loadDrivers]);
+
+  React.useEffect(() => {
+    const raw = (params.preselect ?? '').toString();
+    const next = (raw === 'app_price' || raw === 'select_driver' || raw === 'name_price' || raw === 'receive_bids')
+      ? (raw as PricingOption)
+      : null;
+
+    if (next && !selectedOption) {
+      console.log('[select-driver] preselect option:', next);
+      proceedWithOption(next);
+    }
+  }, [params.preselect, proceedWithOption, selectedOption]);
 
   const handlePassengerConfirm = () => {
     setShowPassengerModal(false);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   TextInput,
   Alert,
   Platform,
+  Modal,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Home, Briefcase, MapPin, Plus, X } from 'lucide-react-native';
 import {
@@ -20,11 +22,13 @@ import {
 interface MyAddressesProps {
   onPickAsPickup: (addr: SavedAddress) => void;
   onPickAsVenue: (addr: SavedAddress) => void;
+  compact?: boolean;
 }
 
 export default function MyAddresses({
   onPickAsPickup,
   onPickAsVenue,
+  compact = false,
 }: MyAddressesProps) {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,12 +71,12 @@ export default function MyAddresses({
       setNewAddress('');
       setShowAddForm(false);
       Alert.alert('Success', 'Address added successfully');
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to add address');
     }
   };
 
-
+  const headerLabel = useMemo(() => (compact ? 'Saved' : 'Saved Addresses'), [compact]);
 
   const getIconForLabel = (label: string) => {
     const lower = label.toLowerCase();
@@ -81,113 +85,128 @@ export default function MyAddresses({
     return <MapPin size={14} color="#1E3A8A" />;
   };
 
+  const form = (
+    <View style={styles.addForm}>
+      <View style={styles.addFormHeader}>
+        <Text style={styles.addFormTitle}>Add New Address</Text>
+        <Pressable
+          onPress={() => {
+            setShowAddForm(false);
+            setNewLabel('');
+            setNewAddress('');
+          }}
+          testID="addressesCloseAddForm"
+        >
+          <X size={20} color="#64748B" />
+        </Pressable>
+      </View>
+      <TextInput
+        style={styles.addFormInput}
+        value={newLabel}
+        onChangeText={setNewLabel}
+        placeholder="Label (e.g., Home, Work, Gym)"
+        placeholderTextColor="#94A3B8"
+        testID="addressesNewLabel"
+      />
+      <TextInput
+        style={[styles.addFormInput, styles.addFormInputMultiline]}
+        value={newAddress}
+        onChangeText={setNewAddress}
+        placeholder="Street address"
+        placeholderTextColor="#94A3B8"
+        multiline
+        testID="addressesNewAddress"
+      />
+      <Pressable style={styles.saveButton} onPress={handleAddAddress} testID="addressesSaveNew">
+        <Text style={styles.saveButtonText}>Save Address</Text>
+      </Pressable>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
+      <View style={styles.headerRow}>
+        <Text style={styles.headerText}>{headerLabel}</Text>
+        <Pressable
+          style={({ pressed }) => [styles.headerAdd, pressed && styles.headerAddPressed]}
+          onPress={() => setShowAddForm(true)}
+          testID="addressesHeaderAdd"
+        >
+          <Plus size={16} color="#1E3A8A" />
+          <Text style={styles.headerAddText}>Add</Text>
+        </Pressable>
+      </View>
 
       {loading ? (
         <Text style={styles.loadingText}>Loading addresses...</Text>
       ) : addresses.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>No saved addresses yet.</Text>
-          <Pressable
-            style={styles.addButton}
-            onPress={() => setShowAddForm(true)}
-          >
-            <Plus size={16} color="#1E3A8A" />
-            <Text style={styles.addButtonText}>Add Address</Text>
-          </Pressable>
         </View>
       ) : (
-        <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.scrollContent}
-          >
-            {addresses.map((addr) => (
-              <View
-                key={addr.id}
-                style={styles.addressChip}
-              >
-                <View style={styles.chipHeader}>
-                  {getIconForLabel(addr.label)}
-                  <Text
-                    style={styles.chipLabel}
-                    numberOfLines={1}
-                  >
-                    {addr.label}
-                  </Text>
-                </View>
-                <Text
-                  style={styles.chipAddress}
-                  numberOfLines={1}
-                >
-                  {addr.line1}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          testID="addressesScroll"
+        >
+          {addresses.map((addr) => (
+            <View key={addr.id} style={[styles.addressChip, compact && styles.addressChipCompact]}>
+              <View style={styles.chipHeader}>
+                {getIconForLabel(addr.label)}
+                <Text style={styles.chipLabel} numberOfLines={1}>
+                  {addr.label}
                 </Text>
-                <View style={styles.chipActions}>
-                  <Pressable
-                    style={styles.chipActionButton}
-                    onPress={() => onPickAsPickup(addr)}
-                    accessibilityLabel={`Set ${addr.label} as pickup location`}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.chipActionText}>Pickup</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.chipActionButton, styles.chipActionButtonVenue]}
-                    onPress={() => onPickAsVenue(addr)}
-                    accessibilityLabel={`Set ${addr.label} as venue`}
-                    accessibilityRole="button"
-                  >
-                    <Text style={[styles.chipActionText, styles.chipActionTextVenue]}>Venue</Text>
-                  </Pressable>
-                </View>
               </View>
-            ))}
-            <Pressable
-              style={styles.addChip}
-              onPress={() => setShowAddForm(true)}
-            >
-              <Plus size={20} color="#64748B" />
-              <Text style={styles.addChipText}>Add</Text>
-            </Pressable>
-          </ScrollView>
-        </>
+              <Text style={styles.chipAddress} numberOfLines={1}>
+                {formatAddressShort(addr)}
+              </Text>
+              <View style={styles.chipActions}>
+                <Pressable
+                  style={[styles.chipActionButton, compact && styles.chipActionButtonCompact]}
+                  onPress={() => onPickAsPickup(addr)}
+                  accessibilityLabel={`Set ${addr.label} as pickup location`}
+                  accessibilityRole="button"
+                  testID={`addressesPickup_${addr.id}`}
+                >
+                  <Text style={[styles.chipActionText, compact && styles.chipActionTextCompact]}>Pickup</Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.chipActionButton,
+                    styles.chipActionButtonVenue,
+                    compact && styles.chipActionButtonCompact,
+                  ]}
+                  onPress={() => onPickAsVenue(addr)}
+                  accessibilityLabel={`Set ${addr.label} as venue`}
+                  accessibilityRole="button"
+                  testID={`addressesVenue_${addr.id}`}
+                >
+                  <Text style={[styles.chipActionText, styles.chipActionTextVenue, compact && styles.chipActionTextCompact]}>
+                    Venue
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
       )}
 
-      {showAddForm && (
-        <View style={styles.addForm}>
-          <View style={styles.addFormHeader}>
-            <Text style={styles.addFormTitle}>Add New Address</Text>
-            <Pressable
-              onPress={() => {
-                setShowAddForm(false);
-                setNewLabel('');
-                setNewAddress('');
-              }}
-            >
-              <X size={20} color="#64748B" />
-            </Pressable>
+      {compact ? (
+        <Modal
+          visible={showAddForm}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowAddForm(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalSheet}>
+              {form}
+            </KeyboardAvoidingView>
           </View>
-          <TextInput
-            style={styles.addFormInput}
-            value={newLabel}
-            onChangeText={setNewLabel}
-            placeholder="Label (e.g., Home, Work, Gym)"
-            placeholderTextColor="#94A3B8"
-          />
-          <TextInput
-            style={styles.addFormInput}
-            value={newAddress}
-            onChangeText={setNewAddress}
-            placeholder="Street address"
-            placeholderTextColor="#94A3B8"
-            multiline
-          />
-          <Pressable style={styles.saveButton} onPress={handleAddAddress}>
-            <Text style={styles.saveButtonText}>Save Address</Text>
-          </Pressable>
-        </View>
+        </Modal>
+      ) : (
+        showAddForm && form
       )}
     </View>
   );
@@ -195,19 +214,39 @@ export default function MyAddresses({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 12,
+    gap: 10,
   },
-  header: {
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#64748B',
+  headerText: {
+    fontSize: 12,
+    fontWeight: '800' as const,
+    color: '#94A3B8',
+    letterSpacing: 0.8,
     textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
+  },
+  headerAdd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  headerAddPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
+  },
+  headerAddText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#1E3A8A',
   },
 
   loadingText: {
@@ -217,42 +256,28 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   emptyState: {
-    alignItems: 'center',
-    paddingVertical: 24,
-    gap: 12,
+    paddingVertical: 8,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#94A3B8',
-  },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-  },
-  addButtonText: {
-    fontSize: 14,
     fontWeight: '600' as const,
-    color: '#1E3A8A',
   },
   scrollContent: {
     gap: 10,
   },
   addressChip: {
-    width: 180,
+    width: 170,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 12,
     gap: 6,
+  },
+  addressChipCompact: {
+    width: 150,
+    padding: 10,
   },
   chipHeader: {
     flexDirection: 'row',
@@ -268,7 +293,7 @@ const styles = StyleSheet.create({
   chipAddress: {
     fontSize: 12,
     color: '#64748B',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   chipActions: {
     flexDirection: 'row',
@@ -279,10 +304,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
     borderWidth: 1,
     borderColor: '#BFDBFE',
-    borderRadius: 6,
-    paddingVertical: 6,
+    borderRadius: 10,
+    paddingVertical: 7,
     paddingHorizontal: 8,
     alignItems: 'center',
+  },
+  chipActionButtonCompact: {
+    paddingVertical: 6,
+    borderRadius: 9,
   },
   chipActionButtonVenue: {
     backgroundColor: '#F0FDF4',
@@ -290,37 +319,35 @@ const styles = StyleSheet.create({
   },
   chipActionText: {
     fontSize: 11,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
     color: '#1E3A8A',
+  },
+  chipActionTextCompact: {
+    fontSize: 10,
   },
   chipActionTextVenue: {
     color: '#166534',
   },
-  addChip: {
-    width: 80,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    padding: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    borderStyle: 'dashed',
-  },
-  addChipText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: '#64748B',
-  },
+
   addForm: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     gap: 12,
-    marginTop: 8,
+  },
+  addFormInputMultiline: {
+    minHeight: 70,
+    textAlignVertical: 'top' as const,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    padding: 12,
   },
   addFormHeader: {
     flexDirection: 'row',

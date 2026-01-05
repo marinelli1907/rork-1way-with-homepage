@@ -20,6 +20,7 @@ import {
   ActivityIndicator,
   Image,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { calculateRideQuote } from '@/utils/pricing';
 import * as Location from 'expo-location';
@@ -273,60 +274,72 @@ export default function HomeScreen() {
           <Text style={styles.bookingTitle}>Book a Ride</Text>
 
           <View style={styles.addressInputs}>
-            <View style={styles.inputWrapper}>
+            <View style={styles.addressRow}>
               <View style={styles.inputIcon}>
                 <View style={styles.pickupDot} />
               </View>
-              <View style={styles.inputField}>
+
+              <View style={styles.textBox}>
                 <TextInput
                   value={pickupAddress}
                   onChangeText={setPickupAddress}
                   placeholder="Pickup location"
                   placeholderTextColor="#94A3B8"
                   style={styles.addressInput}
+                  testID="homePickupInput"
                 />
               </View>
-              <Pressable
-                style={styles.locationButton}
-                onPress={getCurrentLocation}
-                disabled={isLoadingLocation}
-              >
-                <RefreshCw
-                  size={18}
-                  color="#1E3A8A"
-                  strokeWidth={2.5}
-                />
+
+              <View style={styles.rightSlot}>
+                <Pressable
+                  style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+                  onPress={getCurrentLocation}
+                  disabled={isLoadingLocation}
+                  testID="homeRefreshLocation"
+                >
+                  <RefreshCw
+                    size={18}
+                    color="#1E3A8A"
+                    strokeWidth={2.5}
+                  />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.middleRow}>
+              <View style={styles.routeLine} />
+              <Pressable style={styles.swapButton} onPress={swapAddresses} testID="homeSwapAddresses">
+                <ArrowUpDown size={16} color="#64748B" strokeWidth={2.5} />
               </Pressable>
             </View>
 
-            <View style={styles.routeLine} />
-
-            <Pressable
-              style={styles.swapButton}
-              onPress={swapAddresses}
-            >
-              <ArrowUpDown size={16} color="#64748B" strokeWidth={2.5} />
-            </Pressable>
-
-            <View style={styles.inputWrapper}>
+            <View style={styles.addressRow}>
               <View style={styles.inputIcon}>
                 <MapPin size={20} color="#DC2626" strokeWidth={2.5} />
               </View>
-              <View style={styles.inputField}>
+
+              <View style={styles.textBox}>
                 <TextInput
                   value={dropoffAddress}
                   onChangeText={setDropoffAddress}
                   placeholder="Where to?"
                   placeholderTextColor="#94A3B8"
                   style={styles.addressInput}
+                  testID="homeDropoffInput"
                 />
               </View>
+
+              <View style={styles.rightSlot} />
             </View>
           </View>
 
           <View style={styles.savedAddressesSection}>
-            <Text style={styles.savedAddressesLabel}>Quick Fill</Text>
+            <View style={styles.savedAddressesHeader}>
+              <Text style={styles.savedAddressesLabel}>Quick Fill</Text>
+              <Text style={styles.savedAddressesHint}>Tap a chip → Pickup / Venue</Text>
+            </View>
             <MyAddresses
+              compact
               onPickAsPickup={(addr) => handleAddressFromSaved(addr, 'pickup')}
               onPickAsVenue={(addr) => handleAddressFromSaved(addr, 'dropoff')}
             />
@@ -347,6 +360,63 @@ export default function HomeScreen() {
             </View>
           )}
 
+          <View style={styles.quickDriversSection}>
+            <View style={styles.quickDriversHeader}>
+              <Text style={styles.quickDriversTitle}>Pick a driver fast</Text>
+              <Text style={styles.quickDriversSubtitle}>Skip scrolling later</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.quickDriversScroll}
+              testID="homeQuickDriversScroll"
+            >
+              {onlineDrivers.slice(0, 5).map((driver) => {
+                const disabled = !pickupAddress || !dropoffAddress;
+                return (
+                  <Pressable
+                    key={driver.id}
+                    style={({ pressed }) => [
+                      styles.quickDriverChip,
+                      pressed && styles.quickDriverChipPressed,
+                      disabled && styles.quickDriverChipDisabled,
+                    ]}
+                    onPress={() => {
+                      if (disabled) return;
+                      const basePrice = estimatedPrice || 25.0;
+                      router.push({
+                        pathname: '/select-driver',
+                        params: {
+                          eventId: 'instant_ride',
+                          eventTitle: 'Instant Ride',
+                          rideType: 'arrival',
+                          basePrice: basePrice.toString(),
+                          pickupAddress,
+                          dropoffAddress,
+                          pickupTime: new Date().toISOString(),
+                          preselect: 'select_driver',
+                          quickDriverId: driver.id,
+                        },
+                      });
+                    }}
+                    disabled={disabled}
+                    testID={`homeQuickDriver_${driver.id}`}
+                  >
+                    <Image source={{ uri: driver.avatar }} style={styles.quickDriverAvatar} />
+                    <View style={styles.quickDriverText}>
+                      <Text style={styles.quickDriverName} numberOfLines={1}>
+                        {driver.name.split(' ')[0]}
+                      </Text>
+                      <Text style={styles.quickDriverMeta} numberOfLines={1}>
+                        {driver.estimatedArrival} min • {driver.rating.toFixed(1)}★
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
           <Pressable
             style={({ pressed }) => [
               styles.bookButton,
@@ -355,6 +425,7 @@ export default function HomeScreen() {
             ]}
             onPress={handleBookNow}
             disabled={!pickupAddress || !dropoffAddress}
+            testID="homeBookNow"
           >
             <Text style={styles.bookButtonText}>Book Now</Text>
             <ArrowRight size={20} color="#FFFFFF" strokeWidth={2.5} />
@@ -501,13 +572,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   addressInputs: {
-    marginBottom: 16,
+    marginBottom: 12,
+    gap: 10,
   },
-  inputWrapper: {
+  addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    position: 'relative',
   },
   inputIcon: {
     width: 32,
@@ -521,7 +592,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#059669',
   },
-  inputField: {
+  textBox: {
     flex: 1,
   },
   addressInput: {
@@ -534,24 +605,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
+  rightSlot: {
+    width: 40,
+    alignItems: 'flex-end',
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  iconButtonPressed: {
+    transform: [{ scale: 0.96 }],
+    opacity: 0.85,
+  },
+  middleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: 15,
+  },
   routeLine: {
     width: 2,
-    height: 24,
+    height: 22,
     backgroundColor: '#CBD5E1',
-    marginLeft: 15,
-    marginVertical: 4,
-  },
-  locationButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
   },
   swapButton: {
-    position: 'absolute',
-    right: 20,
-    top: '50%',
-    transform: [{ translateY: -12 }],
-    zIndex: 10,
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -560,21 +643,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.08,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   savedAddressesSection: {
-    marginTop: 16,
-    paddingTop: 16,
+    marginTop: 10,
+    paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
   },
+  savedAddressesHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
   savedAddressesLabel: {
     fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#475569',
+  },
+  savedAddressesHint: {
+    fontSize: 12,
+    color: '#94A3B8',
     fontWeight: '600' as const,
-    color: '#64748B',
-    marginBottom: 12,
   },
   priceEstimate: {
     flexDirection: 'row',
@@ -583,7 +678,68 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF3C7',
     borderRadius: 12,
     padding: 12,
-    marginBottom: 16,
+    marginBottom: 12,
+  },
+  quickDriversSection: {
+    marginBottom: 12,
+  },
+  quickDriversHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 10,
+  },
+  quickDriversTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#0F172A',
+  },
+  quickDriversSubtitle: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
+  },
+  quickDriversScroll: {
+    gap: 10,
+    paddingRight: 4,
+  },
+  quickDriverChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    minWidth: 140,
+  },
+  quickDriverChipPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.9,
+  },
+  quickDriverChipDisabled: {
+    opacity: 0.5,
+  },
+  quickDriverAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  quickDriverText: {
+    flex: 1,
+    gap: 2,
+  },
+  quickDriverName: {
+    fontSize: 13,
+    fontWeight: '800' as const,
+    color: '#0F172A',
+  },
+  quickDriverMeta: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#64748B',
   },
   priceEstimateText: {
     fontSize: 15,
