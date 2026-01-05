@@ -112,28 +112,48 @@ export default function BottomSheetModal({
     if (isDirty) {
       Keyboard.dismiss();
       setTimeout(() => {
+        const canSave = Boolean(onSave) && !saveButtonDisabled;
+
         if (Platform.OS === 'web') {
-          const confirmed = window.confirm(
-            'You have unsaved changes. Are you sure you want to close?'
-          );
-          if (confirmed) {
+          if (canSave) {
+            const shouldSave = window.confirm('Save your changes?');
+            if (shouldSave) {
+              onSave?.();
+              return;
+            }
+          }
+
+          const shouldDiscard = window.confirm('Discard your changes?');
+          if (shouldDiscard) {
             onClose();
           }
-        } else {
-          Alert.alert(
-            'Unsaved Changes',
-            'You have unsaved changes. Are you sure you want to close?',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Discard', style: 'destructive', onPress: onClose },
-            ]
-          );
+          return;
         }
+
+        if (canSave) {
+          Alert.alert('Unsaved Changes', 'What would you like to do?', [
+            { text: 'Keep Editing', style: 'cancel' },
+            { text: 'Discard', style: 'destructive', onPress: onClose },
+            {
+              text: 'Save',
+              style: 'default',
+              onPress: () => {
+                onSave?.();
+              },
+            },
+          ]);
+          return;
+        }
+
+        Alert.alert('Unsaved Changes', 'You have unsaved changes. Are you sure you want to close?', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Discard', style: 'destructive', onPress: onClose },
+        ]);
       }, 100);
     } else {
       onClose();
     }
-  }, [isDirty, onClose]);
+  }, [isDirty, onClose, onSave, saveButtonDisabled]);
 
   const handleBackdropPress = useCallback(() => {
     Keyboard.dismiss();

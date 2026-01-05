@@ -97,6 +97,8 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
         return eventDate >= dateStart && eventDate <= dateEnd;
       });
 
+      const sortedDayEvents = [...dayEvents].sort((a, b) => a.startISO.localeCompare(b.startISO));
+
       const dayHolidays = holidays.filter(holiday => {
         const holidayDate = new Date(holiday.date);
         return (
@@ -131,7 +133,7 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
         dayNumber: day,
         isCurrentMonth: true,
         isToday,
-        events: [...holidayEvents, ...dayEvents],
+        events: [...holidayEvents, ...sortedDayEvents],
       });
     }
     
@@ -327,6 +329,8 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
             const isBeingDragged = draggedEvent?.id === event.id;
             
             const isHoliday = event.id.startsWith('holiday_');
+
+            const isImported = event.source === 'import';
             
             return (
               <Pressable
@@ -335,6 +339,7 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
                   styles.eventDot,
                   { backgroundColor: color },
                   isBeingDragged && styles.eventDotDragging,
+                  isImported && styles.eventDotImported,
                 ]}
                 onPress={() => {
                   if (!isDragging) {
@@ -361,6 +366,12 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
                 <Text style={styles.eventTitle} numberOfLines={1}>
                   {event.title}
                 </Text>
+
+                {isImported && (
+                  <Text style={styles.eventImportedBadge} numberOfLines={1}>
+                    Imported
+                  </Text>
+                )}
               </Pressable>
             );
           })}
@@ -680,6 +691,17 @@ const styles = StyleSheet.create({
   },
   eventDotDragging: {
     opacity: 0.4,
+  },
+  eventDotImported: {
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.75)',
+  },
+  eventImportedBadge: {
+    marginTop: 2,
+    fontSize: 7,
+    fontWeight: '700' as const,
+    color: 'rgba(255, 255, 255, 0.92)',
+    letterSpacing: 0.2,
   },
   modalOverlay: {
     flex: 1,

@@ -138,8 +138,27 @@ export default function CreateEventScreen() {
   }, [category]);
 
   const isDirty = useMemo(() => {
-    return title.trim() !== '' || venue.trim() !== '' || notes.trim() !== '' || isPublic;
-  }, [title, venue, notes, isPublic]);
+    const baseDirty = title.trim() !== '' || venue.trim() !== '' || notes.trim() !== '' || isPublic;
+
+    if (mode === 'edit' && existingEvent) {
+      const startISO = startAt.toISOString();
+      const endISO = endAt.toISOString();
+      const addressValue = (address.trim() || venue.trim()) as string;
+
+      return (
+        title.trim() !== (existingEvent.title ?? '').trim() ||
+        venue.trim() !== (existingEvent.venue ?? '').trim() ||
+        addressValue.trim() !== (existingEvent.address ?? '').trim() ||
+        notes.trim() !== (existingEvent.notes ?? '').trim() ||
+        category !== existingEvent.category ||
+        isPublic !== (existingEvent.isPublic ?? false) ||
+        startISO !== existingEvent.startISO ||
+        endISO !== existingEvent.endISO
+      );
+    }
+
+    return baseDirty;
+  }, [address, category, existingEvent, isPublic, mode, notes, startAt, endAt, title, venue]);
 
   const close = useCallback(() => {
     router.back();
@@ -241,6 +260,10 @@ export default function CreateEventScreen() {
   ]);
 
   const saveButtonDisabled = !title.trim() || !venue.trim();
+
+  const isImportedEvent = useMemo(() => {
+    return mode === 'edit' && existingEvent?.source === 'import';
+  }, [existingEvent?.source, mode]);
 
   return (
     <BottomSheetModal
@@ -398,8 +421,18 @@ export default function CreateEventScreen() {
             <Text style={[styles.privacyText, !isPublic && styles.privacyTextActive]}>Private</Text>
           </Pressable>
           <Pressable
-            style={[styles.privacyOption, isPublic && styles.privacyOptionActive]}
-            onPress={() => setIsPublic(true)}
+            style={[
+              styles.privacyOption,
+              isPublic && styles.privacyOptionActive,
+              isImportedEvent && styles.privacyOptionDisabled,
+            ]}
+            onPress={() => {
+              if (isImportedEvent) {
+                Alert.alert('Imported Event', 'Imported events stay private. Duplicate the event to create a public version.');
+                return;
+              }
+              setIsPublic(true);
+            }}
             testID="eventPrivacyPublic"
           >
             <Globe size={16} color={isPublic ? '#FFFFFF' : '#64748B'} strokeWidth={2} />
@@ -407,7 +440,7 @@ export default function CreateEventScreen() {
           </Pressable>
         </View>
         <Text style={styles.privacyHint}>
-          Imported events are always private.
+          Imported events default to Private.
         </Text>
       </View>
 
@@ -470,6 +503,9 @@ const styles = StyleSheet.create({
   privacyOptionActive: {
     backgroundColor: '#1E3A8A',
     borderColor: '#1E3A8A',
+  },
+  privacyOptionDisabled: {
+    opacity: 0.45,
   },
   privacyText: {
     fontSize: 14,
