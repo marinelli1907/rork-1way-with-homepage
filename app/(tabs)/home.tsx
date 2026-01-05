@@ -10,7 +10,7 @@ import {
   RefreshCw,
   ArrowUpDown,
 } from 'lucide-react-native';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -133,7 +133,7 @@ export default function HomeScreen() {
   const [onlineDrivers, setOnlineDrivers] = useState(AVAILABLE_DRIVERS.filter(d => d.isAvailable));
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
-  const getCurrentLocation = useCallback(async () => {
+  const getCurrentLocation = async () => {
     setIsLoadingLocation(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -162,7 +162,7 @@ export default function HomeScreen() {
     } finally {
       setIsLoadingLocation(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
     Animated.loop(
@@ -183,7 +183,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     getCurrentLocation();
-  }, [getCurrentLocation]);
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
