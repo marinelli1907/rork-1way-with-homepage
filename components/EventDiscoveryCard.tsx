@@ -273,7 +273,7 @@ export default function EventDiscoveryCard({ event, distance }: EventDiscoveryCa
 
       {isInterested && (
         <View style={styles.notificationBadge}>
-          <Text style={styles.notificationText}>You'll be reminded about this event</Text>
+          <Text style={styles.notificationText}>You’ll be reminded about this event</Text>
         </View>
       )}
       

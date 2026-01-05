@@ -275,7 +275,7 @@ export default function DriverJobsScreen() {
             <MapPin size={64} color="#CBD5E1" />
             <Text style={styles.emptyTitle}>No rides available</Text>
             <Text style={styles.emptySubtitle}>
-              Stay online and we'll notify you when new ride requests come in
+              Stay online and we’ll notify you when new ride requests come in
             </Text>
           </View>
         )}

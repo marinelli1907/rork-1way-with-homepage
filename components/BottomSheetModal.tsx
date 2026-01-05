@@ -47,7 +47,7 @@ export default function BottomSheetModal({
 }: BottomSheetModalProps) {
   const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false);
 
   useEffect(() => {
     if (visible) {
@@ -69,11 +69,11 @@ export default function BottomSheetModal({
   useEffect(() => {
     const keyboardWillShow = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKeyboardVisible(true)
+      () => setIsKeyboardVisible(true)
     );
     const keyboardWillHide = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardVisible(false)
+      () => setIsKeyboardVisible(false)
     );
 
     return () => {
@@ -159,8 +159,13 @@ export default function BottomSheetModal({
       statusBarTranslucent
     >
       <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={handleBackdropPress} />
-        
+        <Pressable
+          style={styles.backdrop}
+          onPress={handleBackdropPress}
+          pointerEvents="auto"
+          testID="bottomSheetBackdrop"
+        />
+
         <Animated.View
           style={[
             styles.sheetContainer,
@@ -173,7 +178,7 @@ export default function BottomSheetModal({
           <KeyboardAvoidingView
             style={styles.keyboardView}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
           >
             <View style={[styles.sheet, { paddingTop: insets.top || 20 }]}>
               <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
@@ -215,14 +220,21 @@ export default function BottomSheetModal({
                 )}
               </View>
 
+              <View
+                style={[
+                  styles.keyboardSpacer,
+                  isKeyboardVisible && { height: 12 },
+                ]}
+              />
+
               <ScrollView
                 style={styles.scrollView}
                 contentContainerStyle={[
                   styles.scrollContent,
-                  { paddingBottom: Math.max(insets.bottom, 20) + (keyboardVisible ? 0 : 80) },
+                  { paddingBottom: Math.max(insets.bottom, 20) + 96 },
                 ]}
                 keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="interactive"
+                keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                 showsVerticalScrollIndicator={false}
               >
                 {children}
@@ -243,9 +255,12 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
   },
   sheetContainer: {
     width: '100%',
+    zIndex: 1,
+    elevation: 20,
   },
   keyboardView: {
     flex: 1,
@@ -318,5 +333,8 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+  },
+  keyboardSpacer: {
+    height: 0,
   },
 });

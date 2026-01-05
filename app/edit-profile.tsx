@@ -50,66 +50,86 @@ export default function EditProfileScreen() {
 
   const handleGenerateCarImage = async () => {
     if (!canGenerateCar) {
-      Alert.alert('Missing Information', 'Please fill in all car details (make, model, year, and color) to generate an image.');
+      Alert.alert(
+        'Missing Information',
+        'Please fill in all car details (make, model, year, and color) to generate an image.'
+      );
       return;
     }
 
     setIsGenerating(true);
     try {
-      console.log('Generating car image:', { carYear, carColor, carMake, carModel });
-      
+      console.log('[edit-profile] Generating car image', { carYear, carColor, carMake, carModel });
+
       const prompt = `A high-quality, professional studio photograph of a ${carYear} ${carColor} ${carMake} ${carModel}. The car should be shown from a 3/4 front angle view, positioned on a clean white studio background. Perfect lighting, photorealistic, detailed, modern automotive photography style. The car should be clean and well-maintained.`;
-      
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+
       const response = await fetch('https://toolkit.rork.com/images/generate/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({
           prompt,
           size: '1536x1024',
         }),
+        signal: controller.signal,
       });
 
-      console.log('Response status:', response.status);
+      clearTimeout(timeout);
+
+      console.log('[edit-profile] image generate status', response.status);
+
+      const rawText = await response.text();
+      console.log('[edit-profile] image generate raw response (first 500 chars)', rawText.slice(0, 500));
 
       if (!response.ok) {
-        let errorMessage = `Server responded with status ${response.status}`;
-        try {
-          const errorText = await response.text();
-          console.error('Image generation error response:', errorText);
-          errorMessage = errorText || errorMessage;
-        } catch (e) {
-          console.error('Could not read error response:', e);
-        }
-        throw new Error(errorMessage);
+        throw new Error(rawText || `Server responded with status ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('Response data:', JSON.stringify(data, null, 2));
-      
-      if (data && typeof data === 'object' && data.image) {
-        const imageData = data.image;
-        if (imageData.base64Data && imageData.mimeType) {
-          const imageUri = `data:${imageData.mimeType};base64,${imageData.base64Data}`;
-          console.log('Car image generated successfully');
-          setCarImageUrl(imageUri);
-          Alert.alert('Success', 'Car image generated successfully!');
-        } else {
-          console.error('Invalid image structure:', imageData);
-          throw new Error('Missing base64Data or mimeType in response');
-        }
-      } else {
-        console.error('Invalid response format. Expected {image: {...}}, got:', typeof data, data);
-        throw new Error(`Invalid response format from server`);
+      let data: unknown = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch (e) {
+        console.error('[edit-profile] Failed to parse JSON', e);
+        throw new Error('Invalid JSON from server');
       }
+
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid response format from server');
+      }
+
+      const maybe = data as {
+        image?: { base64Data?: string; mimeType?: string; url?: string };
+        url?: string;
+      };
+
+      const base64Data = maybe.image?.base64Data;
+      const mimeType = maybe.image?.mimeType;
+      const url = maybe.image?.url ?? maybe.url;
+
+      if (base64Data && mimeType) {
+        const imageUri = `data:${mimeType};base64,${base64Data}`;
+        setCarImageUrl(imageUri);
+        Alert.alert('Success', 'Car image generated successfully!');
+        return;
+      }
+
+      if (url && typeof url === 'string') {
+        setCarImageUrl(url);
+        Alert.alert('Success', 'Car image generated successfully!');
+        return;
+      }
+
+      console.error('[edit-profile] Invalid response body', data);
+      throw new Error('Invalid response format from server');
     } catch (error) {
-      console.error('Failed to generate car image:', error);
+      console.error('[edit-profile] Failed to generate car image', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      Alert.alert(
-        'Generation Failed', 
-        `Could not generate car image: ${errorMessage}. Please check your internet connection and try again.`
-      );
+      Alert.alert('Generation Failed', `Could not generate car image: ${errorMessage}`);
     } finally {
       setIsGenerating(false);
     }
