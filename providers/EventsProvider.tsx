@@ -1,5 +1,5 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import * as Location from 'expo-location';
 import { Event, EventCategory, UserPrefs, CatalogEventWithDistance, NearbyFilters, UserLocation, CatalogEvent, InterestedEvent } from '@/types';
 import { GUARDIANS_2025_HOME_GAMES } from '@/constants/guardians-schedule';
@@ -27,11 +27,11 @@ const DEFAULT_PREFS: UserPrefs = {
 export const [EventsProvider, useEvents] = createContextHook(() => {
   const [events, setEvents] = useState<Event[]>([]);
   const [userPrefs, setUserPrefs] = useState<UserPrefs>(DEFAULT_PREFS);
-  const [isLoading, setIsLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [discoveredEvents, setDiscoveredEvents] = useState<CatalogEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const discoveryInFlightRef = useRef<boolean>(false);
   const [interestedEvents, setInterestedEvents] = useState<InterestedEvent[]>([]);
   const [notInterestedIds, setNotInterestedIds] = useState<Set<string>>(new Set());
 
@@ -376,14 +376,21 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
   }, []);
 
   const discoverNearbyEvents = useCallback(async (filters: NearbyFilters): Promise<void> => {
-    if (!userLocation || eventsLoading) {
+    if (!userLocation) {
       return;
     }
 
+    if (discoveryInFlightRef.current) {
+      console.log('discoverNearbyEvents skipped: discovery already in-flight');
+      return;
+    }
+
+    discoveryInFlightRef.current = true;
     setEventsLoading(true);
+
     try {
       console.log('Discovering events with filters:', filters);
-      
+
       const discoveryFilters: EventDiscoveryFilters = {
         latitude: userLocation.lat,
         longitude: userLocation.lng,
@@ -402,8 +409,9 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       console.error('Failed to discover events:', error);
     } finally {
       setEventsLoading(false);
+      discoveryInFlightRef.current = false;
     }
-  }, [userLocation, eventsLoading]);
+  }, [userLocation]);
 
   const getNearbyEvents = useCallback((filters: NearbyFilters): CatalogEventWithDistance[] => {
     if (!userLocation) {
@@ -692,7 +700,6 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     upcomingEvents,
     pastEvents,
     userPrefs,
-    isLoading,
     userLocation,
     locationLoading,
     eventsLoading,
@@ -717,5 +724,5 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     bookRide,
     cancelRide,
     updateRideStatus,
-  }), [events, upcomingEvents, pastEvents, userPrefs, isLoading, userLocation, locationLoading, eventsLoading, interestedEvents, addEvent, updateEvent, deleteEvent, deleteEvents, duplicateEvent, importGuardiansSchedule, importFromIOSCalendar, updatePrefs, requestLocation, getNearbyEvents, discoverNearbyEvents, saveFromCatalog, markEventInterested, markEventNotInterested, removeEventInterest, getEventInterestStatus, updatePersonalSchedule, bookRide, cancelRide, updateRideStatus]);
+  }), [events, upcomingEvents, pastEvents, userPrefs, userLocation, locationLoading, eventsLoading, interestedEvents, addEvent, updateEvent, deleteEvent, deleteEvents, duplicateEvent, importGuardiansSchedule, importFromIOSCalendar, updatePrefs, requestLocation, getNearbyEvents, discoverNearbyEvents, saveFromCatalog, markEventInterested, markEventNotInterested, removeEventInterest, getEventInterestStatus, updatePersonalSchedule, bookRide, cancelRide, updateRideStatus]);
 });

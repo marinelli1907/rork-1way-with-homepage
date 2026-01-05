@@ -14,7 +14,7 @@ import { Event } from '@/types';
 
 export default function PastEventsScreen() {
   const router = useRouter();
-  const { pastEvents, isLoading } = useEvents();
+  const { pastEvents, eventsLoading } = useEvents();
 
   const pastEventsWithRides = pastEvents.filter(event => 
     event.rides && event.rides.length > 0
@@ -81,7 +81,7 @@ export default function PastEventsScreen() {
     );
   };
 
-  if (isLoading) {
+  if (eventsLoading) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>

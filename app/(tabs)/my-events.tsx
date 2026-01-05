@@ -25,7 +25,7 @@ export default function MyEventsScreen() {
   const router = useRouter();
   const {
     upcomingEvents,
-    isLoading,
+    eventsLoading,
     deleteEvent,
     deleteEvents,
     importFromIOSCalendar,
@@ -307,7 +307,7 @@ export default function MyEventsScreen() {
     );
   };
 
-  if (isLoading) {
+  if (eventsLoading) {
     return (
       <View style={styles.container}>
         <View style={styles.loadingContainer}>
