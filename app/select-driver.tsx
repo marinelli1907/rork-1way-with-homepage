@@ -181,92 +181,9 @@ export default function SelectDriverScreen() {
 
   const loadDrivers = useCallback(async (optionForAutoSelect?: PricingOption) => {
     setLoading(true);
-    setGeneratingVehicleImages(true);
+    setGeneratingVehicleImages(false);
 
     try {
-      const sortedDrivers = [...MOCK_DRIVERS].sort((a, b) => a.distance - b.distance);
-
-      const driversWithImages = await Promise.all(
-        sortedDrivers.map(async (driver) => {
-          try {
-            const prompt = `A professional photograph of a ${driver.vehicleColor} ${driver.vehicleBrand} ${driver.vehicleModel} car, parked in a clean urban setting, side angle view, realistic, high quality, modern, well-maintained vehicle`;
-            const response = await fetch('https://toolkit.rork.com/images/generate/', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ prompt, size: '1024x1024' }),
-            });
-
-            if (!response.ok) {
-              console.error(`Failed to generate image for ${driver.name}: ${response.status} ${response.statusText}`);
-              return driver;
-            }
-
-            const responseText = await response.text();
-
-            if (!responseText || responseText.trim() === '') {
-              console.error(`Empty response for ${driver.name}`);
-              return driver;
-            }
-
-            try {
-              const result = JSON.parse(responseText);
-
-              const maybe = result as {
-                image?: { base64Data?: string; mimeType?: string; url?: string };
-                url?: string;
-              };
-
-              const base64Data = maybe.image?.base64Data;
-              const mimeType = maybe.image?.mimeType;
-              const url = maybe.image?.url ?? maybe.url;
-
-              if (base64Data && mimeType) {
-                return {
-                  ...driver,
-                  vehicleImage: `data:${mimeType};base64,${base64Data}`,
-                };
-              }
-
-              if (url && typeof url === 'string') {
-                return {
-                  ...driver,
-                  vehicleImage: url,
-                };
-              }
-
-              console.warn(`No valid image data for ${driver.name}, using driver without image`);
-              return driver;
-            } catch (parseError) {
-              console.error(`JSON parse error for ${driver.name}:`, parseError);
-              console.error('Response text preview:', responseText.substring(0, 100));
-              return driver;
-            }
-          } catch (error) {
-            console.error(`Failed to generate image for ${driver.name}:`, error);
-            return driver;
-          }
-        })
-      );
-
-      setDrivers(driversWithImages);
-
-      const quickDriverId = (params.quickDriverId ?? '').toString();
-      if (quickDriverId) {
-        const found = driversWithImages.find(d => d.id === quickDriverId);
-        if (found) {
-          console.log('[select-driver] quick driver selected:', found.name);
-          setSelectedDriver(found);
-          return;
-        }
-      }
-
-      if (optionForAutoSelect === 'app_price' && driversWithImages.length > 0) {
-        const nearestDriver = driversWithImages[0];
-        console.log('[select-driver] auto-select nearest driver:', nearestDriver.name);
-        setSelectedDriver(nearestDriver);
-      }
-    } catch (error) {
-      console.error('Failed to load drivers:', error);
       const sortedDrivers = [...MOCK_DRIVERS].sort((a, b) => a.distance - b.distance);
       setDrivers(sortedDrivers);
 
@@ -274,7 +191,7 @@ export default function SelectDriverScreen() {
       if (quickDriverId) {
         const found = sortedDrivers.find(d => d.id === quickDriverId);
         if (found) {
-          console.log('[select-driver] quick driver selected (fallback):', found.name);
+          console.log('[select-driver] quick driver selected:', found.name);
           setSelectedDriver(found);
           return;
         }
@@ -282,12 +199,13 @@ export default function SelectDriverScreen() {
 
       if (optionForAutoSelect === 'app_price' && sortedDrivers.length > 0) {
         const nearestDriver = sortedDrivers[0];
-        console.log('[select-driver] auto-select nearest driver (fallback):', nearestDriver.name);
+        console.log('[select-driver] auto-select nearest driver:', nearestDriver.name);
         setSelectedDriver(nearestDriver);
       }
+    } catch (error) {
+      console.error('Failed to load drivers:', error);
     } finally {
       setLoading(false);
-      setGeneratingVehicleImages(false);
     }
   }, [params.quickDriverId]);
 
