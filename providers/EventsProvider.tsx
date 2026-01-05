@@ -688,6 +688,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
           const newEvent: Event = {
             id: `event_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             userId: 'user_1',
+            createdBy: 'user_1',
             title: importedEvent.title,
             category: 'general',
             startISO: importedEvent.startISO,
@@ -695,8 +696,8 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
             venue,
             address,
             color: categoryColors.general || '#6B7280',
-            tags: [importedEvent.calendarName],
-            source: 'import',
+            tags: [],
+            source: 'manual',
             notes: importedEvent.notes,
             calendarEventId: importedEvent.id,
             isPublic: false,
