@@ -121,9 +121,9 @@ export default function DiscoverScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-      <View style={styles.adHeaderWrapper}>
-        <RotatingAdHeader />
-      </View>
+        <View style={styles.adHeaderWrapper}>
+          <RotatingAdHeader />
+        </View>
 
       <View style={styles.modeSelector}>
         <Pressable

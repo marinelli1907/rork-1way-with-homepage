@@ -5,7 +5,6 @@ import {
   Clock,
   Star,
   ArrowRight,
-  TrendingUp,
   Users,
   Zap,
   RefreshCw,
@@ -24,7 +23,6 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '@/providers/AuthProvider';
 import { calculateRideQuote } from '@/utils/pricing';
 import * as Location from 'expo-location';
 import MyAddresses from '@/components/MyAddresses';
@@ -127,7 +125,6 @@ const AVAILABLE_DRIVERS: Driver[] = [
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuth();
   const [pickupAddress, setPickupAddress] = useState('');
   const [dropoffAddress, setDropoffAddress] = useState('');
   const [estimatedPrice, setEstimatedPrice] = useState<number | null>(null);
@@ -258,8 +255,6 @@ export default function HomeScreen() {
     });
   };
 
-  const firstName = user?.name?.split(' ')[0] || 'there';
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -267,31 +262,8 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <RotatingAdHeader />
-
-        <View style={styles.header}>
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.userName}>{firstName}</Text>
-          </View>
-
-          <View style={styles.networkPulse}>
-            <Animated.View
-              style={[
-                styles.pulseOuter,
-                {
-                  transform: [{ scale: pulseAnim }],
-                  opacity: pulseAnim.interpolate({
-                    inputRange: [1, 1.2],
-                    outputRange: [0.3, 0],
-                  }),
-                },
-              ]}
-            />
-            <View style={styles.pulseInner}>
-              <TrendingUp size={16} color="#FFFFFF" strokeWidth={2.5} />
-            </View>
-          </View>
+        <View style={styles.adHeaderWrapper}>
+          <RotatingAdHeader />
         </View>
 
         <View style={styles.networkStatus}>
@@ -482,54 +454,10 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 30,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
+  adHeaderWrapper: {
     paddingHorizontal: 20,
-  },
-  welcomeSection: {
-    flex: 1,
-  },
-  welcomeText: {
-    fontSize: 16,
-    color: '#64748B',
-    fontWeight: '500' as const,
-  },
-  userName: {
-    fontSize: 28,
-    fontWeight: '800' as const,
-    color: '#1E293B',
-    marginTop: 2,
-  },
-  networkPulse: {
-    position: 'relative',
-    width: 56,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pulseOuter: {
-    position: 'absolute',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#059669',
-  },
-  pulseInner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#059669',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#059669',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   networkStatus: {
     flexDirection: 'row',
@@ -538,6 +466,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECFDF5',
     borderRadius: 12,
     padding: 14,
+    marginTop: 12,
     marginBottom: 24,
     borderWidth: 1,
     borderColor: '#A7F3D0',

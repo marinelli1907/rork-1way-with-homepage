@@ -12,7 +12,7 @@ import {
   Animated,
   Dimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useEvents } from '@/providers/EventsProvider';
 import { Event } from '@/types';
 import MonthCalendar from '@/components/MonthCalendar';
@@ -23,7 +23,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function MyEventsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const {
     upcomingEvents,
     isLoading,
@@ -320,10 +319,10 @@ export default function MyEventsScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.toolbarContainer, { paddingTop: insets.top + 12 }]}>
-        <View style={styles.adHeaderWrapper}>
-          <RotatingAdHeader />
-        </View>
+      <View style={styles.adHeaderWrapper}>
+        <RotatingAdHeader />
+      </View>
+      <View style={[styles.toolbarContainer, { paddingTop: 12 }]}>
         <View style={styles.toolbarButtons}>
           <Pressable
             style={styles.toolbarButton}
@@ -446,6 +445,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#64748B',
   },
+  adHeaderWrapper: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 12,
+    backgroundColor: '#FFFFFF',
+  },
   toolbarContainer: {
     flexDirection: 'column',
     paddingHorizontal: 20,
@@ -454,9 +459,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     gap: 12,
-  },
-  adHeaderWrapper: {
-    marginBottom: 8,
   },
   toolbarButtons: {
     flexDirection: 'row',
