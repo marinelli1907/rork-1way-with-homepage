@@ -10,6 +10,7 @@ import {
   ScrollView,
   Alert,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEvents } from '@/providers/EventsProvider';
@@ -127,11 +128,17 @@ export default function CreateEventScreen() {
           ),
         }} 
       />
-      <ScrollView
+      <KeyboardAvoidingView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
         <View style={styles.section}>
           <View style={styles.fieldHeader}>
             <Type size={20} color="#1E3A8A" />
@@ -143,7 +150,6 @@ export default function CreateEventScreen() {
             onChangeText={setTitle}
             placeholder="Event title"
             placeholderTextColor="#94A3B8"
-            autoFocus
           />
         </View>
 
@@ -291,6 +297,7 @@ export default function CreateEventScreen() {
           </Text>
         </Pressable>
       </ScrollView>
+      </KeyboardAvoidingView>
     </>
   );
 }
