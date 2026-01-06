@@ -1,5 +1,5 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { MapPin, Star, Clock, DollarSign, User, ArrowRight, CheckCircle, Users, Gavel, Zap, X } from 'lucide-react-native';
+import { MapPin, Star, Clock, DollarSign, User, ArrowRight, CheckCircle, Users, Gavel, Zap, X, PawPrint } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 
 import {
@@ -517,24 +517,54 @@ export default function SelectDriverScreen() {
 
           {(!event || !event.invitedProfiles || event.invitedProfiles.length === 0) && (
             <View style={styles.passengersTopCard}>
-              <Text style={styles.passengersTopLabel}>Passengers</Text>
-              <View style={styles.passengersTopControl}>
-                <Pressable
-                  style={styles.passengersTopButton}
-                  onPress={() => setNumberOfPassengers(Math.max(1, numberOfPassengers - 1))}
-                >
-                  <Text style={styles.passengersTopButtonText}>-</Text>
-                </Pressable>
-                <View style={styles.passengersTopDisplay}>
-                  <Users size={16} color="#1E3A8A" />
-                  <Text style={styles.passengersTopValue}>{numberOfPassengers}</Text>
+              <View style={styles.passengersTopRow}>
+                <Text style={styles.passengersTopLabel}>Passengers</Text>
+                <View style={styles.passengersTopControl}>
+                  <Pressable
+                    testID="passengers-minus-top"
+                    style={styles.passengersTopButton}
+                    onPress={() => setNumberOfPassengers(Math.max(1, numberOfPassengers - 1))}
+                  >
+                    <Text style={styles.passengersTopButtonText}>-</Text>
+                  </Pressable>
+                  <View style={styles.passengersTopDisplay}>
+                    <Users size={16} color="#1E3A8A" />
+                    <Text testID="passengers-count-top" style={styles.passengersTopValue}>{numberOfPassengers}</Text>
+                  </View>
+                  <Pressable
+                    testID="passengers-plus-top"
+                    style={styles.passengersTopButton}
+                    onPress={() => setNumberOfPassengers(Math.min(6, numberOfPassengers + 1))}
+                  >
+                    <Text style={styles.passengersTopButtonText}>+</Text>
+                  </Pressable>
                 </View>
-                <Pressable
-                  style={styles.passengersTopButton}
-                  onPress={() => setNumberOfPassengers(Math.min(6, numberOfPassengers + 1))}
-                >
-                  <Text style={styles.passengersTopButtonText}>+</Text>
-                </Pressable>
+              </View>
+
+              <View style={styles.petsTopRow}>
+                <View style={styles.petsTopLabelRow}>
+                  <PawPrint size={16} color="#0F766E" />
+                  <Text style={styles.petsTopLabel}>Animals</Text>
+                </View>
+                <View style={styles.petsTopControl}>
+                  <Pressable
+                    testID="pets-minus-top"
+                    style={styles.petsTopButton}
+                    onPress={() => setPetsCount(Math.max(0, petsCount - 1))}
+                  >
+                    <Text style={styles.petsTopButtonText}>-</Text>
+                  </Pressable>
+                  <View style={styles.petsTopDisplay}>
+                    <Text testID="pets-count-top" style={styles.petsTopValue}>{petsCount}</Text>
+                  </View>
+                  <Pressable
+                    testID="pets-plus-top"
+                    style={styles.petsTopButton}
+                    onPress={() => setPetsCount(Math.min(4, petsCount + 1))}
+                  >
+                    <Text style={styles.petsTopButtonText}>+</Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
           )}
@@ -718,21 +748,49 @@ export default function SelectDriverScreen() {
 
         {splitCostEnabled && (
           <View style={styles.passengersCard}>
-            <Text style={styles.passengersLabel}>Number of passengers:</Text>
-            <View style={styles.passengersControl}>
-              <Pressable
-                style={styles.passengersButton}
-                onPress={() => setNumberOfPassengers(Math.max(1, numberOfPassengers - 1))}
-              >
-                <Text style={styles.passengersButtonText}>-</Text>
-              </Pressable>
-              <Text style={styles.passengersValue}>{numberOfPassengers}</Text>
-              <Pressable
-                style={styles.passengersButton}
-                onPress={() => setNumberOfPassengers(Math.min(6, numberOfPassengers + 1))}
-              >
-                <Text style={styles.passengersButtonText}>+</Text>
-              </Pressable>
+            <View style={styles.passengersRowHeader}>
+              <Text style={styles.passengersLabel}>Number of passengers</Text>
+              <View style={styles.passengersControl}>
+                <Pressable
+                  testID="passengers-minus"
+                  style={styles.passengersButton}
+                  onPress={() => setNumberOfPassengers(Math.max(1, numberOfPassengers - 1))}
+                >
+                  <Text style={styles.passengersButtonText}>-</Text>
+                </Pressable>
+                <Text testID="passengers-count" style={styles.passengersValue}>{numberOfPassengers}</Text>
+                <Pressable
+                  testID="passengers-plus"
+                  style={styles.passengersButton}
+                  onPress={() => setNumberOfPassengers(Math.min(6, numberOfPassengers + 1))}
+                >
+                  <Text style={styles.passengersButtonText}>+</Text>
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.petsInlineRow}>
+              <View style={styles.petsInlineLabelRow}>
+                <PawPrint size={16} color="#0F766E" />
+                <Text style={styles.petsInlineLabel}>Animals</Text>
+              </View>
+              <View style={styles.petsInlineControl}>
+                <Pressable
+                  testID="pets-minus"
+                  style={styles.petsInlineButton}
+                  onPress={() => setPetsCount(Math.max(0, petsCount - 1))}
+                >
+                  <Text style={styles.petsInlineButtonText}>-</Text>
+                </Pressable>
+                <Text testID="pets-count" style={styles.petsInlineValue}>{petsCount}</Text>
+                <Pressable
+                  testID="pets-plus"
+                  style={styles.petsInlineButton}
+                  onPress={() => setPetsCount(Math.min(4, petsCount + 1))}
+                >
+                  <Text style={styles.petsInlineButtonText}>+</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
         )}
@@ -1396,27 +1454,86 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  passengersRowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   passengersLabel: {
     fontSize: 15,
     fontWeight: '600' as const,
     color: '#1E293B',
-    marginBottom: 12,
   },
   passengersTopCard: {
     backgroundColor: '#F8FAFC',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 12,
     marginTop: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    gap: 10,
+  },
+  passengersTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
   passengersTopLabel: {
     fontSize: 13,
-    fontWeight: '600' as const,
-    color: '#64748B',
+    fontWeight: '700' as const,
+    color: '#475569',
+  },
+  petsTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  petsTopLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  petsTopLabel: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#0F766E',
+  },
+  petsTopControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  petsTopButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#0F766E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  petsTopButtonText: {
+    fontSize: 18,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+  },
+  petsTopDisplay: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 8,
+    minWidth: 60,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  petsTopValue: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+    color: '#065F46',
   },
   passengersTopControl: {
     flexDirection: 'row',
@@ -1476,6 +1593,51 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#1E293B',
     minWidth: 40,
+    textAlign: 'center',
+  },
+  petsInlineRow: {
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(15, 118, 110, 0.18)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  petsInlineLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  petsInlineLabel: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#0F766E',
+  },
+  petsInlineControl: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  petsInlineButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0F766E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  petsInlineButtonText: {
+    fontSize: 22,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+  },
+  petsInlineValue: {
+    fontSize: 22,
+    fontWeight: '800' as const,
+    color: '#065F46',
+    minWidth: 26,
     textAlign: 'center',
   },
   bidBadge: {
