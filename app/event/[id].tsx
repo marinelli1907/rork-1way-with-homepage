@@ -25,7 +25,7 @@ import {
   User,
   Star,
 } from 'lucide-react-native';
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -107,6 +107,25 @@ export default function EventDetailScreen() {
     return event.userId === myProfile.id || event.createdBy === myProfile.id;
   }, [event, myProfile]);
 
+  const safeClose = useCallback(() => {
+    const canGoBackFn = (router as unknown as { canGoBack?: () => boolean }).canGoBack;
+    const canGoBack = typeof canGoBackFn === 'function' ? canGoBackFn() : false;
+
+    console.log('EventDetailScreen.safeClose', {
+      id,
+      actualId,
+      isCatalogEvent,
+      canGoBack,
+    });
+
+    if (canGoBack) {
+      router.back();
+      return;
+    }
+
+    router.replace('/my-events');
+  }, [actualId, id, isCatalogEvent, router]);
+
   const interestStatus = catalogEvent ? getEventInterestStatus(catalogEvent.id) : null;
   const isInterested = interestStatus === 'interested';
   const isNotInterested = interestStatus === 'not_interested';
@@ -118,7 +137,8 @@ export default function EventDetailScreen() {
           <Text style={styles.errorText}>Event not found</Text>
           <Pressable
             style={styles.backButton}
-            onPress={() => router.back()}
+            onPress={safeClose}
+            testID="eventNotFoundCloseButton"
           >
             <Text style={styles.backButtonText}>Go Back</Text>
           </Pressable>
@@ -343,7 +363,7 @@ export default function EventDetailScreen() {
           style: 'destructive',
           onPress: () => {
             deleteEvent(event.id);
-            router.back();
+            safeClose();
           },
         },
       ]
@@ -465,7 +485,7 @@ export default function EventDetailScreen() {
       } else {
         await markEventNotInterested(catalogEvent.id);
         Alert.alert('Hidden', 'Event hidden from your discover feed', [
-          { text: 'OK', onPress: () => router.back() },
+          { text: 'OK', onPress: safeClose },
         ]);
       }
     } catch (error) {
@@ -484,9 +504,9 @@ export default function EventDetailScreen() {
         options={{ 
           title: 'Event Details',
           headerBackTitle: 'Back',
-          headerBackVisible: true,
-          headerRight: () => (
-            <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
+          headerBackVisible: false,
+          headerLeft: () => (
+            <Pressable onPress={safeClose} style={{ padding: 8 }} testID="eventDetailCloseButton">
               <X size={24} color="#64748B" strokeWidth={2} />
             </Pressable>
           ),
