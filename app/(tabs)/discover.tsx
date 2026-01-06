@@ -31,8 +31,9 @@ import RadiusSlider from '@/components/RadiusSlider';
 import RotatingAdHeader from '@/components/RotatingAdHeader';
 import { NOW_PLAYING_MOVIES } from '@/constants/movies';
 import { CLEVELAND_RESTAURANTS } from '@/constants/restaurants';
+import { MOCK_PROMOTIONS } from '@/constants/promotions';
 
-type DiscoveryMode = 'events' | 'movies' | 'restaurants';
+type DiscoveryMode = 'events' | 'movies' | 'venues';
 
 export default function DiscoverScreen() {
   const router = useRouter();
@@ -112,12 +113,54 @@ export default function DiscoverScreen() {
     );
   }, [searchQuery]);
 
-  const filteredRestaurants = useMemo(() => {
-    return CLEVELAND_RESTAURANTS.filter(restaurant =>
+  const calculateDistanceMiles = useCallback((lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 3959;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }, []);
+
+  const promoByMerchantName = useMemo(() => {
+    const map = new Map<string, typeof MOCK_PROMOTIONS[number]>();
+    for (const promo of MOCK_PROMOTIONS) {
+      if (!promo.active) continue;
+      map.set(promo.merchantName.trim().toLowerCase(), promo);
+    }
+    return map;
+  }, []);
+
+  const filteredVenues = useMemo(() => {
+    const filtered = CLEVELAND_RESTAURANTS.filter((restaurant) =>
       restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      restaurant.cuisine.some(c => c.toLowerCase().includes(searchQuery.toLowerCase()))
+      restaurant.cuisine.some((c) => c.toLowerCase().includes(searchQuery.toLowerCase()))
     );
-  }, [searchQuery]);
+
+    const withDistance = filtered.map((restaurant) => {
+      const distance = userLocation
+        ? calculateDistanceMiles(userLocation.lat, userLocation.lng, restaurant.geo.lat, restaurant.geo.lng)
+        : Number.POSITIVE_INFINITY;
+
+      const promo = promoByMerchantName.get(restaurant.name.trim().toLowerCase());
+
+      return {
+        restaurant,
+        distance,
+        promo,
+      };
+    });
+
+    return withDistance.sort((a, b) => {
+      const aSponsored = a.promo?.sponsored ? 1 : 0;
+      const bSponsored = b.promo?.sponsored ? 1 : 0;
+      if (aSponsored !== bSponsored) return bSponsored - aSponsored;
+      return a.distance - b.distance;
+    });
+  }, [calculateDistanceMiles, promoByMerchantName, searchQuery, userLocation]);
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -146,12 +189,13 @@ export default function DiscoverScreen() {
           </Text>
         </Pressable>
         <Pressable
-          style={[styles.modeButton, discoveryMode === 'restaurants' && styles.modeButtonActive]}
-          onPress={() => setDiscoveryMode('restaurants')}
+          style={[styles.modeButton, discoveryMode === 'venues' && styles.modeButtonActive]}
+          onPress={() => setDiscoveryMode('venues')}
+          testID="discoverModeVenues"
         >
-          <Utensils size={20} color={discoveryMode === 'restaurants' ? '#FFFFFF' : '#64748B'} />
-          <Text style={[styles.modeButtonText, discoveryMode === 'restaurants' && styles.modeButtonTextActive]}>
-            Dining
+          <Utensils size={20} color={discoveryMode === 'venues' ? '#FFFFFF' : '#64748B'} />
+          <Text style={[styles.modeButtonText, discoveryMode === 'venues' && styles.modeButtonTextActive]}>
+            Food & Drinks
           </Text>
         </Pressable>
       </View>
@@ -317,7 +361,7 @@ export default function DiscoverScreen() {
         </ScrollView>
       )}
 
-      {discoveryMode === 'restaurants' && (
+      {discoveryMode === 'venues' && (
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -327,30 +371,51 @@ export default function DiscoverScreen() {
             <Search size={18} color="#64748B" strokeWidth={2} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search restaurants..."
+              placeholder="Search bars & restaurants..."
               placeholderTextColor="#94A3B8"
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
           </View>
-          {filteredRestaurants.map((restaurant) => (
+          {filteredVenues.map(({ restaurant, distance, promo }) => (
             <Pressable
               key={restaurant.id}
               style={styles.restaurantCard}
               onPress={() => router.push(`/restaurant/${restaurant.id}`)}
+              testID={`discoverVenueCard_${restaurant.id}`}
             >
               <Image source={{ uri: restaurant.imageUrl }} style={styles.restaurantImage} />
               <View style={styles.restaurantInfo}>
-                <Text style={styles.restaurantName}>{restaurant.name}</Text>
+                <View style={styles.venueTitleRow}>
+                  <Text style={styles.restaurantName} numberOfLines={1}>{restaurant.name}</Text>
+                  {promo?.sponsored ? (
+                    <View style={styles.sponsoredPill}>
+                      <Text style={styles.sponsoredPillText}>Sponsored</Text>
+                    </View>
+                  ) : null}
+                </View>
+
                 <View style={styles.restaurantMeta}>
                   <Star size={14} color="#F59E0B" fill="#F59E0B" />
                   <Text style={styles.restaurantRating}>{restaurant.rating}</Text>
                   <Text style={styles.restaurantPrice}>{restaurant.priceRange}</Text>
+                  {Number.isFinite(distance) ? (
+                    <Text style={styles.venueDistance}>{distance.toFixed(1)} mi</Text>
+                  ) : null}
                 </View>
-                <Text style={styles.restaurantCuisine}>{restaurant.cuisine.join(', ')}</Text>
-                <Text style={styles.restaurantDescription} numberOfLines={2}>
-                  {restaurant.description}
-                </Text>
+
+                <Text style={styles.restaurantCuisine} numberOfLines={1}>{restaurant.cuisine.join(', ')}</Text>
+
+                {promo ? (
+                  <View style={styles.promoRow}>
+                    <Text style={styles.promoTitle} numberOfLines={1}>{promo.title}</Text>
+                    <Text style={styles.promoSub} numberOfLines={1}>{promo.description}</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.restaurantDescription} numberOfLines={2}>
+                    {restaurant.description}
+                  </Text>
+                )}
               </View>
             </Pressable>
           ))}
@@ -824,5 +889,46 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#475569',
     lineHeight: 18,
+  },
+  venueTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 2,
+  },
+  sponsoredPill: {
+    backgroundColor: '#111827',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  sponsoredPillText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: '#FFFFFF',
+    letterSpacing: 0.2,
+  },
+  venueDistance: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: '#64748B',
+    marginLeft: 6,
+  },
+  promoRow: {
+    marginTop: 2,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    gap: 2,
+  },
+  promoTitle: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#DC2626',
+  },
+  promoSub: {
+    fontSize: 13,
+    color: '#475569',
   },
 });

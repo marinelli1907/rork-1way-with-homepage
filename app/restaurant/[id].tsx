@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { ChevronLeft, MapPin, Phone, Clock, Star, Users, Globe } from 'lucide-react-native';
-import React, { useState, useMemo } from 'react';
+import { ChevronLeft, MapPin, Phone, Clock, Star, Users, Globe, Car, Calendar as CalendarIcon } from 'lucide-react-native';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,22 +10,21 @@ import {
   Image,
   TextInput,
   Alert,
-  Platform,
 } from 'react-native';
 import { CLEVELAND_RESTAURANTS, generateAvailableTimeSlots } from '@/constants/restaurants';
-import * as Calendar from 'expo-calendar';
+import { useEvents } from '@/providers/EventsProvider';
+
 
 export default function RestaurantDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const restaurant = CLEVELAND_RESTAURANTS.find(r => r.id === id);
+  const { addEvent } = useEvents();
   
   const [selectedDate, setSelectedDate] = useState(0);
   const [partySize, setPartySize] = useState(2);
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
   const [specialRequests, setSpecialRequests] = useState('');
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
   const dates = useMemo(() => {
     const result: Date[] = [];
@@ -42,6 +41,73 @@ export default function RestaurantDetailsScreen() {
     return generateAvailableTimeSlots(restaurant.id, dates[selectedDate].toISOString());
   }, [restaurant, selectedDate, dates]);
 
+  const reservationDateTime = useMemo(() => {
+    if (!selectedTime) return null;
+    const selectedDateObj = dates[selectedDate];
+    const parts = selectedTime.split(' ');
+    const hm = parts[0] ?? '';
+    const period = parts[1] ?? '';
+    const [hStr, mStr] = hm.split(':');
+    let hour = parseInt(hStr || '0', 10);
+    const minute = parseInt(mStr || '0', 10);
+    if (period.toUpperCase() === 'PM' && hour !== 12) hour += 12;
+    if (period.toUpperCase() === 'AM' && hour === 12) hour = 0;
+
+    const dt = new Date(selectedDateObj);
+    dt.setHours(hour, minute, 0, 0);
+    return dt;
+  }, [dates, selectedDate, selectedTime]);
+
+  const handlePickTime = useCallback((time: string) => {
+    setSelectedTime(time);
+  }, []);
+
+  const handleAddToCalendar = useCallback(async () => {
+    if (!restaurant) return;
+    if (!reservationDateTime) {
+      Alert.alert('Pick a time', 'Select a time first, then you can add this to your calendar.');
+      return;
+    }
+
+    try {
+      const startISO = reservationDateTime.toISOString();
+
+      const newEvent = await addEvent({
+        userId: 'user_1',
+        createdBy: 'user_1',
+        title: `${restaurant.name}`,
+        category: 'food',
+        startISO,
+        endISO: new Date(reservationDateTime.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+        venue: restaurant.name,
+        address: restaurant.address,
+        color: '#10B981',
+        tags: ['Dining'],
+        source: 'manual',
+        notes: specialRequests ? `Notes: ${specialRequests}` : undefined,
+        isPublic: false,
+        verifiedAddress: {
+          lat: restaurant.geo.lat,
+          lng: restaurant.geo.lng,
+          formatted: restaurant.address,
+        },
+      });
+
+      console.log('[restaurant] addEvent success', { id: newEvent.id, title: newEvent.title });
+
+      router.push(`/select-driver?eventId=${encodeURIComponent(newEvent.id)}&eventTitle=${encodeURIComponent(newEvent.title)}&rideType=arrival&basePrice=18&pickupAddress=${encodeURIComponent('Current location')}&dropoffAddress=${encodeURIComponent(restaurant.address)}&pickupTime=${encodeURIComponent(startISO)}&returnTo=${encodeURIComponent('/(tabs)/discover')}`);
+    } catch (e) {
+      console.error('[restaurant] handleAddToCalendar failed', e);
+      Alert.alert('Error', 'Failed to add to calendar. Please try again.');
+    }
+  }, [addEvent, reservationDateTime, restaurant, router, specialRequests]);
+
+  const handleBookRideNow = useCallback(() => {
+    if (!restaurant) return;
+    const pickupTimeISO = new Date().toISOString();
+    router.push(`/select-driver?eventId=${encodeURIComponent('adhoc_restaurant')}&eventTitle=${encodeURIComponent(restaurant.name)}&rideType=arrival&basePrice=18&pickupAddress=${encodeURIComponent('Current location')}&dropoffAddress=${encodeURIComponent(restaurant.address)}&pickupTime=${encodeURIComponent(pickupTimeISO)}&returnTo=${encodeURIComponent('/(tabs)/discover')}`);
+  }, [restaurant, router]);
+
   if (!restaurant) {
     return (
       <View style={styles.container}>
@@ -50,74 +116,7 @@ export default function RestaurantDetailsScreen() {
     );
   }
 
-  const handleReservation = async (time: string) => {
-    if (!customerName || !customerEmail || !customerPhone) {
-      Alert.alert('Missing Information', 'Please fill in all required fields (Name, Email, Phone).');
-      return;
-    }
 
-    const selectedDateObj = dates[selectedDate];
-    const [hours, minutes] = time.split(':');
-    const reservationDateTime = new Date(selectedDateObj);
-    reservationDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    const reservationEndTime = new Date(reservationDateTime.getTime() + 2 * 60 * 60 * 1000);
-
-    Alert.alert(
-      'Confirm Reservation',
-      `Restaurant: ${restaurant.name}\nDate: ${selectedDateObj.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}\nTime: ${time}\nParty Size: ${partySize}\nName: ${customerName}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          onPress: async () => {
-            try {
-              if (Platform.OS !== 'web') {
-                const { status } = await Calendar.requestCalendarPermissionsAsync();
-                if (status === 'granted') {
-                  const calendarId = await getDefaultCalendar();
-                  if (calendarId) {
-                    await Calendar.createEventAsync(calendarId, {
-                      title: `🍽️ ${restaurant.name}`,
-                      startDate: reservationDateTime,
-                      endDate: reservationEndTime,
-                      location: restaurant.address,
-                      notes: `Party Size: ${partySize}\nName: ${customerName}\nEmail: ${customerEmail}\nPhone: ${customerPhone}${specialRequests ? `\nSpecial Requests: ${specialRequests}` : ''}\n\nRating: ${restaurant.rating}⭐ (${restaurant.reviewCount} reviews)\nCuisine: ${restaurant.cuisine.join(', ')}`,
-                      timeZone: 'America/New_York',
-                      alarms: [{ relativeOffset: -60 }],
-                    });
-                    Alert.alert('Success!', 'Your reservation has been confirmed and added to your calendar.');
-                    router.back();
-                    return;
-                  }
-                }
-              }
-              Alert.alert('Success!', 'Your reservation request has been confirmed.');
-              router.back();
-            } catch (error) {
-              console.error('Failed to add to calendar:', error);
-              Alert.alert('Success!', 'Your reservation request has been confirmed.');
-              router.back();
-            }
-          }
-        }
-      ]
-    );
-  };
-
-  const getDefaultCalendar = async (): Promise<string | null> => {
-    try {
-      const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-      const defaultCalendar = calendars.find(
-        cal => cal.allowsModifications && cal.source.name === 'Default'
-      );
-      if (defaultCalendar) return defaultCalendar.id;
-      const writableCalendar = calendars.find(cal => cal.allowsModifications);
-      return writableCalendar?.id || null;
-    } catch (error) {
-      console.error('Failed to get default calendar:', error);
-      return null;
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -200,7 +199,7 @@ export default function RestaurantDetailsScreen() {
           )}
 
           <View style={styles.reservationSection}>
-            <Text style={styles.sectionTitle}>Make a Reservation</Text>
+            <Text style={styles.sectionTitle}>Plan your night</Text>
             
             <View style={styles.formSection}>
               <Text style={styles.formLabel}>Party Size</Text>
@@ -268,13 +267,16 @@ export default function RestaurantDetailsScreen() {
                     style={[
                       styles.timeSlotButton,
                       !slot.available && styles.timeSlotButtonDisabled,
+                      selectedTime === slot.time && styles.timeSlotButtonSelected,
                     ]}
-                    onPress={() => slot.available && handleReservation(slot.time)}
+                    onPress={() => slot.available && handlePickTime(slot.time)}
                     disabled={!slot.available}
+                    testID={`restaurantTimeSlot_${slot.time.replace(/\s+/g, '_')}`}
                   >
                     <Text style={[
                       styles.timeSlotText,
                       !slot.available && styles.timeSlotTextDisabled,
+                      selectedTime === slot.time && styles.timeSlotTextSelected,
                     ]}>
                       {slot.time}
                     </Text>
@@ -283,32 +285,28 @@ export default function RestaurantDetailsScreen() {
               </View>
             </View>
 
+            <View style={styles.ctaRow}>
+              <Pressable
+                style={({ pressed }) => [styles.ctaPrimary, pressed && styles.ctaPressed]}
+                onPress={handleBookRideNow}
+                testID="restaurantBookRideNow"
+              >
+                <Car size={18} color="#FFFFFF" strokeWidth={2} />
+                <Text style={styles.ctaPrimaryText}>Book ride now</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [styles.ctaSecondary, pressed && styles.ctaPressed]}
+                onPress={handleAddToCalendar}
+                testID="restaurantAddToCalendar"
+              >
+                <CalendarIcon size={18} color="#0F172A" strokeWidth={2} />
+                <Text style={styles.ctaSecondaryText}>Pick time & add to calendar</Text>
+              </Pressable>
+            </View>
+
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Your Information</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Full Name *"
-                placeholderTextColor="#94A3B8"
-                value={customerName}
-                onChangeText={setCustomerName}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Email Address *"
-                placeholderTextColor="#94A3B8"
-                value={customerEmail}
-                onChangeText={setCustomerEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Phone Number *"
-                placeholderTextColor="#94A3B8"
-                value={customerPhone}
-                onChangeText={setCustomerPhone}
-                keyboardType="phone-pad"
-              />
+              <Text style={styles.formLabel}>Optional details</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 placeholder="Special Requests (Optional)"
@@ -532,6 +530,10 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     opacity: 0.5,
   },
+  timeSlotButtonSelected: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
   timeSlotText: {
     fontSize: 14,
     fontWeight: '600' as const,
@@ -539,6 +541,54 @@ const styles = StyleSheet.create({
   },
   timeSlotTextDisabled: {
     color: '#94A3B8',
+  },
+  timeSlotTextSelected: {
+    color: '#FFFFFF',
+  },
+  ctaRow: {
+    gap: 10,
+    marginBottom: 24,
+  },
+  ctaPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#E31937',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  ctaPrimaryText: {
+    fontSize: 16,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+  },
+  ctaSecondary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  ctaSecondaryText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: '#0F172A',
+  },
+  ctaPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.99 }],
   },
   input: {
     backgroundColor: '#FFFFFF',

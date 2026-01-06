@@ -2,7 +2,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert } from 'react-native';
 import { Event } from '@/types';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Copy, Move } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Copy, Move, Car } from 'lucide-react-native';
 import { getMultiYearHolidays } from '@/constants/us-federal-holidays';
 
 interface MonthCalendarProps {
@@ -361,9 +361,16 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
                     {eventTime}
                   </Text>
                 )}
-                <Text style={styles.eventTitle} numberOfLines={1}>
-                  {event.title}
-                </Text>
+                <View style={styles.eventTitleRow}>
+                  <Text style={styles.eventTitle} numberOfLines={1}>
+                    {event.title}
+                  </Text>
+                  {!isHoliday && event.rides?.some((r) => r.status !== 'cancelled') ? (
+                    <View style={styles.rideBadge}>
+                      <Car size={12} color="#FFFFFF" strokeWidth={2} />
+                    </View>
+                  ) : null}
+                </View>
 
               </Pressable>
             );
@@ -782,10 +789,27 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#FFFFFF',
   },
+  eventTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
   eventTitle: {
+    flex: 1,
     fontSize: 9,
     fontWeight: '500' as const,
     color: '#FFFFFF',
+  },
+  rideBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(15, 23, 42, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   moreIndicator: {
     paddingVertical: 2,
