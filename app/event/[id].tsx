@@ -40,7 +40,6 @@ import {
   Image,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useEvents } from '@/providers/EventsProvider';
 import { useProfiles } from '@/providers/ProfilesProvider';
 import { calculateRideQuote } from '@/utils/pricing';
@@ -132,7 +131,7 @@ export default function EventDetailScreen() {
 
   if (!displayEvent) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>Event not found</Text>
           <Pressable
@@ -143,7 +142,7 @@ export default function EventDetailScreen() {
             <Text style={styles.backButtonText}>Go Back</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -499,7 +498,7 @@ export default function EventDetailScreen() {
   const connectedProfiles = getConnectedProfiles();
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <View style={styles.container}>
       <Stack.Screen 
         options={{ 
           title: 'Event Details',
@@ -1333,7 +1332,7 @@ export default function EventDetailScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
