@@ -7,6 +7,7 @@ import * as Calendar from 'expo-calendar';
 import { GUARDIANS_2025_HOME_GAMES } from '@/constants/guardians-schedule';
 import { CATALOG_EVENTS } from '@/constants/catalog-events';
 import { VENUE_SURGE_MULTIPLIERS } from '@/constants/venues';
+import { getMultiYearHolidays } from '@/constants/us-federal-holidays';
 import { syncEventToCalendar, deleteEventFromCalendar, updateCalendarEvent, getAvailableCalendars, importEventsFromCalendar } from '@/utils/calendar-sync';
 import { discoverEvents, EventDiscoveryFilters } from '@/utils/event-discovery';
 import { registerForPushNotifications, scheduleEventNotification, cancelNotification } from '@/utils/notifications';
@@ -25,6 +26,7 @@ const STORAGE_KEY_PREFS = '@user_prefs';
 const STORAGE_KEY_LOCATION = '@user_location';
 const STORAGE_KEY_INTERESTED = '@interested_events';
 const STORAGE_KEY_NOT_INTERESTED = '@not_interested_events';
+const STORAGE_KEY_SUPPRESSED_HOLIDAYS = '@suppressed_holidays';
 
 const DEFAULT_PREFS: UserPrefs = {
   favoriteGenres: [],
@@ -43,33 +45,95 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
   const discoveryInFlightRef = useRef<boolean>(false);
   const [interestedEvents, setInterestedEvents] = useState<InterestedEvent[]>([]);
   const [notInterestedIds, setNotInterestedIds] = useState<Set<string>>(new Set());
+  const suppressedHolidayIdsRef = useRef<Set<string>>(new Set());
+
+  const getHolidaySeedRange = useCallback(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    return { startYear: year - 1, endYear: year + 2 };
+  }, []);
+
+  const materializeHolidayEvents = useCallback(
+    (baseEvents: Event[], suppressed: Set<string>) => {
+      const { startYear, endYear } = getHolidaySeedRange();
+      const holidayDefs = getMultiYearHolidays(startYear, endYear);
+
+      const existingById = new Map<string, Event>();
+      for (const e of baseEvents) existingById.set(e.id, e);
+
+      const holidaysAsEvents: Event[] = holidayDefs
+        .map((h) => {
+          const id = `holiday_${h.date}`;
+          if (suppressed.has(id)) return null;
+
+          const existing = existingById.get(id);
+          if (existing) return existing;
+
+          const start = new Date(h.date);
+          const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+          const seed: Event = {
+            id,
+            userId: 'user_1',
+            createdBy: 'user_1',
+            title: h.name,
+            category: 'holiday',
+            startISO: start.toISOString(),
+            endISO: end.toISOString(),
+            venue: '',
+            address: '',
+            color: '#059669',
+            tags: [h.type],
+            source: 'manual',
+            notes: h.description,
+          };
+          return seed;
+        })
+        .filter((e): e is Event => !!e);
+
+      const merged: Event[] = [...baseEvents];
+      for (const hEvent of holidaysAsEvents) {
+        if (!existingById.has(hEvent.id)) merged.push(hEvent);
+      }
+
+      return merged;
+    },
+    [getHolidaySeedRange]
+  );
+
+  const loadData = useCallback(async () => {
+    try {
+      const [eventsData, prefsData, suppressedHolidayData] = await Promise.all([
+        safeGetItem<Event[]>(STORAGE_KEY_EVENTS),
+        safeGetItem<UserPrefs>(STORAGE_KEY_PREFS),
+        safeGetItem<string[]>(STORAGE_KEY_SUPPRESSED_HOLIDAYS),
+      ]);
+
+      const suppressed = new Set<string>(Array.isArray(suppressedHolidayData) ? suppressedHolidayData : []);
+      suppressedHolidayIdsRef.current = suppressed;
+
+      const baseEvents = eventsData && Array.isArray(eventsData) ? eventsData : [];
+      const seeded = materializeHolidayEvents(baseEvents, suppressed);
+      setEvents(seeded);
+
+      if (prefsData) {
+        setUserPrefs(prefsData);
+      }
+
+      if (seeded.length !== baseEvents.length) {
+        await safeSetItem(STORAGE_KEY_EVENTS, seeded);
+      }
+    } catch (error) {
+      console.error('Failed to load data:', error);
+    }
+  }, [materializeHolidayEvents]);
 
   useEffect(() => {
     loadData();
     loadLocation();
     loadInterestData();
     registerForPushNotifications();
-  }, []);
-
-  const loadData = async () => {
-    try {
-      const [eventsData, prefsData] = await Promise.all([
-        safeGetItem<Event[]>(STORAGE_KEY_EVENTS),
-        safeGetItem<UserPrefs>(STORAGE_KEY_PREFS),
-      ]);
-
-      if (eventsData && Array.isArray(eventsData)) {
-        setEvents(eventsData);
-      }
-
-      if (prefsData) {
-        setUserPrefs(prefsData);
-      }
-    } catch (error) {
-      console.error('Failed to load data:', error);
-    }
-  };
-
+  }, [loadData]);
   const loadLocation = async () => {
     try {
       const storedLocation = await safeGetItem<UserLocation>(STORAGE_KEY_LOCATION);
@@ -151,6 +215,18 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       console.error('[Events] Failed to save events:', error);
     }
   };
+
+  const suppressHoliday = useCallback(async (holidayId: string) => {
+    const next = new Set(suppressedHolidayIdsRef.current);
+    next.add(holidayId);
+    suppressedHolidayIdsRef.current = next;
+
+    try {
+      await safeSetItem(STORAGE_KEY_SUPPRESSED_HOLIDAYS, Array.from(next));
+    } catch (e) {
+      console.error('[Events] Failed to persist suppressed holidays', e);
+    }
+  }, []);
 
   const savePrefs = async (newPrefs: UserPrefs) => {
     try {
@@ -278,24 +354,31 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     if (event?.calendarEventId) {
       await deleteEventFromCalendar(event.calendarEventId);
     }
-    
+
+    if (id.startsWith('holiday_')) {
+      await suppressHoliday(id);
+    }
+
     const updatedEvents = events.filter(event => event.id !== id);
     await saveEvents(updatedEvents);
-  }, [events]);
+  }, [events, suppressHoliday]);
 
   const deleteEvents = useCallback(async (ids: string[]) => {
     const idsSet = new Set(ids);
-    
+
     const eventsToDelete = events.filter(event => idsSet.has(event.id));
     for (const event of eventsToDelete) {
       if (event.calendarEventId) {
         await deleteEventFromCalendar(event.calendarEventId);
       }
+      if (event.id.startsWith('holiday_')) {
+        await suppressHoliday(event.id);
+      }
     }
-    
+
     const updatedEvents = events.filter(event => !idsSet.has(event.id));
     await saveEvents(updatedEvents);
-  }, [events]);
+  }, [events, suppressHoliday]);
 
   const duplicateEvent = useCallback(async (id: string) => {
     const eventToDuplicate = events.find(e => e.id === id);

@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert 
 import { Event } from '@/types';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Copy, Move, Car } from 'lucide-react-native';
-import { getMultiYearHolidays } from '@/constants/us-federal-holidays';
 
 interface MonthCalendarProps {
   events: Event[];
@@ -36,10 +35,6 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [eventActionsVisible, setEventActionsVisible] = useState(false);
 
-  const holidays = useMemo(() => {
-    const currentYear = currentMonth.getFullYear();
-    return getMultiYearHolidays(currentYear - 1, currentYear + 1);
-  }, [currentMonth]);
 
   const getCategoryColor = (category: Event['category']) => {
     const colors = {
@@ -102,29 +97,6 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
 
       const sortedDayEvents = [...dayEvents].sort((a, b) => a.startISO.localeCompare(b.startISO));
 
-      const dayHolidays = holidays.filter(holiday => {
-        const holidayDate = new Date(holiday.date);
-        return (
-          holidayDate.getDate() === day &&
-          holidayDate.getMonth() === month &&
-          holidayDate.getFullYear() === year
-        );
-      });
-
-      const holidayEvents: Event[] = dayHolidays.map(holiday => ({
-        id: `holiday_${holiday.date}`,
-        userId: 'system',
-        title: holiday.name,
-        category: 'holiday' as const,
-        startISO: holiday.date,
-        endISO: holiday.date,
-        venue: '',
-        address: '',
-        color: '#059669',
-        tags: [holiday.type],
-        source: 'manual' as const,
-        notes: holiday.description,
-      }));
       
       const isToday = 
         date.getDate() === today.getDate() &&
@@ -136,7 +108,7 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
         dayNumber: day,
         isCurrentMonth: true,
         isToday,
-        events: [...holidayEvents, ...sortedDayEvents],
+        events: sortedDayEvents,
       });
     }
     
@@ -152,7 +124,7 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
     }
     
     return days;
-  }, [currentMonth, events, today, holidays]);
+  }, [currentMonth, events, today]);
 
   const monthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
@@ -329,7 +301,6 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
             
             const isBeingDragged = draggedEvent?.id === event.id;
             
-            const isHoliday = event.id.startsWith('holiday_');
 
             return (
               <Pressable
@@ -341,31 +312,22 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
                 ]}
                 onPress={() => {
                   if (!isDragging) {
-                    if (isHoliday) {
-                      const holidayDate = new Date(event.startISO);
-                      router.push(`/create-event?mode=create&holidayName=${encodeURIComponent(event.title)}&holidayDate=${holidayDate.toISOString()}`);
-                    } else {
-                      openEventActions(event);
-                    }
+                    openEventActions(event);
                   }
                 }}
                 onLongPress={() => {
-                  if (!isHoliday) {
-                    handleEventLongPress(event);
-                  }
+                  handleEventLongPress(event);
                 }}
                 delayLongPress={500}
               >
-                {!isHoliday && (
-                  <Text style={styles.eventTime} numberOfLines={1}>
-                    {eventTime}
-                  </Text>
-                )}
+                <Text style={styles.eventTime} numberOfLines={1}>
+                  {eventTime}
+                </Text>
                 <View style={styles.eventTitleRow}>
                   <Text style={styles.eventTitle} numberOfLines={1}>
                     {event.title}
                   </Text>
-                  {!isHoliday && event.rides?.some((r) => r.status !== 'cancelled') ? (
+                  {event.rides?.some((r) => r.status !== 'cancelled') ? (
                     <View style={styles.rideBadge}>
                       <Car size={12} color="#FFFFFF" strokeWidth={2} />
                     </View>
