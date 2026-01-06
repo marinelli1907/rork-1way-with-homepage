@@ -92,7 +92,7 @@ export default function RideChatScreen() {
       tension: 40,
       friction: 8,
     }).start();
-  }, [driverStatus]);
+  }, [driverStatus, progressAnim]);
 
   const handleSendMessage = () => {
     if (inputText.trim() === '') return;
@@ -262,7 +262,7 @@ export default function RideChatScreen() {
   const pickupTime = new Date(ride.pickupTime);
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       <Stack.Screen 
         options={{ 
           title: 'Chat with Driver',
@@ -271,7 +271,7 @@ export default function RideChatScreen() {
         }} 
       />
 
-      <View style={styles.trackingBar}>
+      <View style={styles.trackingBar} testID="rideChatTrackingBar">
         <View style={styles.trackingContent}>
           <View style={styles.trackingStatus}>
             {driverStatus === 'on_way' && (
@@ -356,7 +356,7 @@ export default function RideChatScreen() {
         </View>
       </View>
 
-      <View style={styles.driverHeader}>
+      <View style={styles.driverHeader} testID="rideChatDriverHeader">
         <View style={styles.driverHeaderContent}>
           {driver.avatar ? (
             <Image source={{ uri: driver.avatar }} style={styles.driverAvatar} />
@@ -460,7 +460,7 @@ export default function RideChatScreen() {
           </View>
         )}
 
-        <View style={styles.inputContainer}>
+        <View style={styles.inputContainer} testID="rideChatInputContainer">
           <Pressable style={styles.imageButton} onPress={handleSelectImage}>
             <ImageIcon size={24} color="#1E3A8A" />
           </Pressable>

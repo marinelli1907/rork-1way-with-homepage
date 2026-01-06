@@ -48,7 +48,7 @@ function RootLayoutNav() {
       <Stack.Screen name="group/[id]" />
       <Stack.Screen name="profile/[id]" />
       <Stack.Screen name="select-driver" />
-      <Stack.Screen name="ride-chat/[rideId]" />
+      <Stack.Screen name="ride-chat/[rideId]" options={{ gestureEnabled: false }} />
     </Stack>
   );
 }
