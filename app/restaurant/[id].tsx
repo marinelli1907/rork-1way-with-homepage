@@ -95,7 +95,20 @@ export default function RestaurantDetailsScreen() {
 
       console.log('[restaurant] addEvent success', { id: newEvent.id, title: newEvent.title });
 
-      router.push(`/select-driver?eventId=${encodeURIComponent(newEvent.id)}&eventTitle=${encodeURIComponent(newEvent.title)}&rideType=arrival&basePrice=18&pickupAddress=${encodeURIComponent('Current location')}&dropoffAddress=${encodeURIComponent(restaurant.address)}&pickupTime=${encodeURIComponent(startISO)}&returnTo=${encodeURIComponent('/(tabs)/discover')}`);
+      Alert.alert(
+        'Added to calendar',
+        'Saved this plan to your calendar. You can book a ride later from the event.',
+        [
+          {
+            text: 'View calendar',
+            onPress: () => router.push('/(tabs)/my-events'),
+          },
+          {
+            text: 'Done',
+            style: 'cancel',
+          },
+        ]
+      );
     } catch (e) {
       console.error('[restaurant] handleAddToCalendar failed', e);
       Alert.alert('Error', 'Failed to add to calendar. Please try again.');
