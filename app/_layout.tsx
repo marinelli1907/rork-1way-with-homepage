@@ -9,6 +9,7 @@ import { PaymentProvider } from "@/providers/PaymentProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { CouponProvider } from "@/providers/CouponProvider";
 import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { trpc, trpcClient } from "@/lib/trpc";
 
 SplashScreen.preventAutoHideAsync();
@@ -48,7 +49,10 @@ function RootLayoutNav() {
       <Stack.Screen name="group/[id]" />
       <Stack.Screen name="profile/[id]" />
       <Stack.Screen name="select-driver" />
-      <Stack.Screen name="ride-chat/[rideId]" options={{ gestureEnabled: false }} />
+      <Stack.Screen
+        name="ride-chat/[rideId]"
+        options={{ headerShown: true, title: "Chat with Driver", gestureEnabled: false }}
+      />
     </Stack>
   );
 }
@@ -81,7 +85,9 @@ function RootContent() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <RootLayoutNav />
+      <SafeAreaProvider>
+        <RootLayoutNav />
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

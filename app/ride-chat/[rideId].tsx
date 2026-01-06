@@ -262,13 +262,14 @@ export default function RideChatScreen() {
   const pickupTime = new Date(ride.pickupTime);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      <Stack.Screen 
-        options={{ 
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <Stack.Screen
+        options={{
           title: 'Chat with Driver',
           headerBackTitle: 'Back',
           headerBackVisible: true,
-        }} 
+          gestureEnabled: false,
+        }}
       />
 
       <View style={styles.trackingBar} testID="rideChatTrackingBar">
@@ -399,7 +400,7 @@ export default function RideChatScreen() {
       <KeyboardAvoidingView
         style={styles.chatContainer}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 110 : 0}
       >
         <ScrollView
           ref={scrollViewRef}
