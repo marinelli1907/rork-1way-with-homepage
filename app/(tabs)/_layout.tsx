@@ -4,6 +4,7 @@ import { Compass, Calendar, User, Users, Bot, Home } from 'lucide-react-native';
 export default function TabsLayout() {
   return (
     <Tabs
+      initialRouteName="home"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: '#1E3A8A',
