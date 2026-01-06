@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import BottomSheetModal from '@/components/BottomSheetModal';
 import { useProfiles } from '@/providers/ProfilesProvider';
-import { Car, Sparkles, Accessibility, PawPrint } from 'lucide-react-native';
+import { Car, Sparkles, Accessibility } from 'lucide-react-native';
 
 const MOCK_USER = {
   name: 'Jordan Smith',
@@ -34,8 +34,6 @@ export default function EditProfileScreen() {
   const [carColor, setCarColor] = useState(myProfile?.carColor || '');
   const [carImageUrl, setCarImageUrl] = useState(myProfile?.carImageUrl || '');
   const [isHandicap, setIsHandicap] = useState<boolean>(myProfile?.isHandicap ?? false);
-  const [hasAnimals, setHasAnimals] = useState<boolean>(myProfile?.hasAnimals ?? false);
-  const [animalCountText, setAnimalCountText] = useState<string>(String(myProfile?.animalCount ?? 0));
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -48,9 +46,7 @@ export default function EditProfileScreen() {
     carYear !== (myProfile?.carYear || '') ||
     carColor !== (myProfile?.carColor || '') ||
     carImageUrl !== (myProfile?.carImageUrl || '') ||
-    isHandicap !== (myProfile?.isHandicap ?? false) ||
-    hasAnimals !== (myProfile?.hasAnimals ?? false) ||
-    animalCountText !== String(myProfile?.animalCount ?? 0);
+    isHandicap !== (myProfile?.isHandicap ?? false);
 
   const canGenerateCar = carMake && carModel && carYear && carColor;
 
@@ -144,8 +140,6 @@ export default function EditProfileScreen() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const parsedAnimals = Math.max(0, parseInt(animalCountText || '0', 10) || 0);
-
       await updateMyProfile({
         name,
         email,
@@ -156,8 +150,6 @@ export default function EditProfileScreen() {
         carColor,
         carImageUrl,
         isHandicap,
-        hasAnimals,
-        animalCount: hasAnimals ? parsedAnimals : 0,
       });
 
       Alert.alert('Success', 'Profile updated successfully', [
@@ -230,7 +222,7 @@ export default function EditProfileScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Accessibility & Pets</Text>
+        <Text style={styles.sectionTitle}>Accessibility</Text>
 
         <Pressable
           style={({ pressed }) => [
@@ -254,47 +246,6 @@ export default function EditProfileScreen() {
             </Text>
           </View>
         </Pressable>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.toggleRow,
-            hasAnimals && styles.toggleRowActiveWarm,
-            pressed && styles.toggleRowPressed,
-          ]}
-          onPress={() => setHasAnimals((v) => !v)}
-          testID="editProfileAnimalsToggle"
-        >
-          <View style={[styles.toggleIcon, { backgroundColor: '#FEF3C7' }]}>
-            <PawPrint size={18} color="#D97706" strokeWidth={2.25} />
-          </View>
-          <View style={styles.toggleTextCol}>
-            <Text style={styles.toggleTitle}>Bringing animals</Text>
-            <Text style={styles.toggleSubtitle}>Set if you have pets/service animals with you</Text>
-          </View>
-          <View style={[styles.pill, hasAnimals ? styles.pillOnWarm : styles.pillOff]}>
-            <Text style={[styles.pillText, hasAnimals ? styles.pillTextOnWarm : styles.pillTextOff]}>
-              {hasAnimals ? 'Yes' : 'No'}
-            </Text>
-          </View>
-        </Pressable>
-
-        {hasAnimals && (
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>How many?</Text>
-            <TextInput
-              style={styles.input}
-              value={animalCountText}
-              onChangeText={(t) => {
-                const cleaned = t.replace(/[^0-9]/g, '');
-                setAnimalCountText(cleaned);
-              }}
-              placeholder="0"
-              placeholderTextColor="#94A3B8"
-              keyboardType="number-pad"
-              testID="editProfileAnimalCount"
-            />
-          </View>
-        )}
       </View>
 
       <View style={styles.section}>

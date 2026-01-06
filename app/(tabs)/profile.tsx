@@ -264,9 +264,6 @@ export default function ProfileScreen() {
 
   const displayName = myProfile?.name ?? MOCK_USER.name;
   const displayAvatar = myProfile?.avatar ?? MOCK_USER.avatar;
-  const hasAnimals = myProfile?.hasAnimals ?? false;
-  const animalCount = Math.max(0, myProfile?.animalCount ?? 0);
-  const animalsLabel = hasAnimals ? `${animalCount} animal${animalCount === 1 ? '' : 's'}` : 'No animals';
   const handicapLabel = (myProfile?.isHandicap ?? false) ? 'Handicap: Yes' : 'Handicap: No';
 
   return (
@@ -286,9 +283,6 @@ export default function ProfileScreen() {
           <View style={styles.badgesRow}>
             <View style={[styles.badge, (myProfile?.isHandicap ?? false) ? styles.badgeBlue : styles.badgeNeutral]}>
               <Text style={styles.badgeText}>{handicapLabel}</Text>
-            </View>
-            <View style={[styles.badge, hasAnimals ? styles.badgeWarm : styles.badgeNeutral]}>
-              <Text style={styles.badgeText}>{animalsLabel}</Text>
             </View>
           </View>
 
