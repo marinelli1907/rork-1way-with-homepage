@@ -1,5 +1,5 @@
-import { useRouter, Stack } from 'expo-router';
-import { Clock, MapPin, DollarSign, Star, Download, Calendar } from 'lucide-react-native';
+import { Stack } from 'expo-router';
+import { Clock, MapPin, Star, Download, Calendar } from 'lucide-react-native';
 import React, { useMemo } from 'react';
 import {
   View,
@@ -17,7 +17,6 @@ import { usePayment } from '@/providers/PaymentProvider';
 import { RideBooking } from '@/types';
 
 export default function RideHistoryScreen() {
-  const router = useRouter();
   const { events } = useEvents();
   const { paymentMethods } = usePayment();
 
@@ -151,8 +150,7 @@ Payment: ${paymentMethodLabel}
       <SafeAreaView style={styles.container}>
         <Stack.Screen 
           options={{ 
-            title: 'Ride History',
-            headerBackVisible: true,
+            headerShown: false,
           }} 
         />
         <View style={styles.emptyContainer}>
@@ -170,8 +168,7 @@ Payment: ${paymentMethodLabel}
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <Stack.Screen 
         options={{ 
-          title: 'Ride History',
-          headerBackVisible: true,
+          headerShown: false,
         }} 
       />
 

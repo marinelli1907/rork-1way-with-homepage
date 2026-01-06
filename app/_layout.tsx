@@ -1,22 +1,58 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { EventsProvider } from "@/providers/EventsProvider";
 import { ProfilesProvider } from "@/providers/ProfilesProvider";
 import { PaymentProvider } from "@/providers/PaymentProvider";
 import { AuthProvider } from "@/providers/AuthProvider";
 import { CouponProvider } from "@/providers/CouponProvider";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Pressable } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { trpc, trpcClient } from "@/lib/trpc";
+import { X } from "lucide-react-native";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const router = useRouter();
+
+  const closeButton = useMemo(
+    () =>
+      function CloseButton() {
+        return (
+          <Pressable
+            testID="header-close"
+            onPress={() => {
+              console.log('[ride-history] header close pressed');
+              if (router.canGoBack()) {
+                router.back();
+                return;
+              }
+              router.replace('/(tabs)' as any);
+            }}
+            style={({ pressed }) => [
+              {
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: pressed ? 'rgba(15, 23, 42, 0.08)' : 'transparent',
+              },
+            ]}
+            hitSlop={10}
+          >
+            <X size={20} color="#0F172A" />
+          </Pressable>
+        );
+      },
+    [router]
+  );
+
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
@@ -52,6 +88,16 @@ function RootLayoutNav() {
       <Stack.Screen
         name="ride-chat/[rideId]"
         options={{ headerShown: true, title: "Chat with Driver", gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="ride-history"
+        options={{
+          headerShown: true,
+          title: "Ride History",
+          presentation: "modal",
+          gestureEnabled: false,
+          headerLeft: closeButton,
+        }}
       />
     </Stack>
   );
