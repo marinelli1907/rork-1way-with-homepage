@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Modal, TextInput, Alert } from 'react-native';
 import { Event } from '@/types';
 import { useRouter } from 'expo-router';
@@ -32,6 +32,9 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
   const [draggedEvent, setDraggedEvent] = useState<Event | null>(null);
   const [dragMode, setDragMode] = useState<'move' | 'copy'>('move');
   const [isDragging, setIsDragging] = useState(false);
+
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [eventActionsVisible, setEventActionsVisible] = useState(false);
 
   const holidays = useMemo(() => {
     const currentYear = currentMonth.getFullYear();
@@ -175,73 +178,71 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
     setShowMonthPicker(false);
   };
 
+  const closeEventActions = useCallback(() => {
+    setEventActionsVisible(false);
+    setSelectedEvent(null);
+  }, []);
+
+  const openEventActions = useCallback((event: Event) => {
+    console.log('[MonthCalendar] openEventActions', { id: event.id, title: event.title });
+    setSelectedEvent(event);
+    setEventActionsVisible(true);
+  }, []);
+
   const handleEventLongPress = (event: Event) => {
-    Alert.alert(
-      event.title,
-      'Choose an action',
-      [
-        {
-          text: 'Edit',
-          onPress: () => router.push(`/create-event?mode=edit&eventId=${event.id}`),
-        },
-        {
-          text: 'Duplicate',
-          onPress: async () => {
-            if (onEventDuplicate) {
-              await onEventDuplicate(event.id);
-              Alert.alert('Success', 'Event duplicated');
-            }
-          },
-        },
-        {
-          text: 'Move to Date',
-          onPress: () => {
-            setDraggedEvent(event);
-            setDragMode('move');
-            setIsDragging(true);
-          },
-        },
-        {
-          text: 'Copy to Date',
-          onPress: () => {
-            setDraggedEvent(event);
-            setDragMode('copy');
-            setIsDragging(true);
-          },
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            Alert.alert(
-              'Delete Event',
-              `Are you sure you want to delete "${event.title}"?`,
-              [
-                {
-                  text: 'Cancel',
-                  style: 'cancel',
-                },
-                {
-                  text: 'Delete',
-                  style: 'destructive',
-                  onPress: async () => {
-                    if (onEventDelete) {
-                      await onEventDelete(event.id);
-                      Alert.alert('Deleted', 'Event has been deleted');
-                    }
-                  },
-                },
-              ]
-            );
-          },
-        },
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-      ]
-    );
+    openEventActions(event);
   };
+
+  const handleDeleteSelectedEvent = useCallback(async () => {
+    if (!selectedEvent) return;
+    if (!onEventDelete) {
+      Alert.alert('Not available', 'Delete is not available here.');
+      return;
+    }
+
+    try {
+      console.log('[MonthCalendar] deleteEvent start', { id: selectedEvent.id });
+      await onEventDelete(selectedEvent.id);
+      console.log('[MonthCalendar] deleteEvent success', { id: selectedEvent.id });
+      closeEventActions();
+      Alert.alert('Deleted', 'Event has been deleted');
+    } catch (error) {
+      console.error('[MonthCalendar] deleteEvent failed', error);
+      Alert.alert('Error', 'Failed to delete event. Please try again.');
+    }
+  }, [closeEventActions, onEventDelete, selectedEvent]);
+
+  const handleDuplicateSelectedEvent = useCallback(async () => {
+    if (!selectedEvent) return;
+    if (!onEventDuplicate) {
+      Alert.alert('Not available', 'Duplicate is not available here.');
+      return;
+    }
+
+    try {
+      console.log('[MonthCalendar] duplicateEvent start', { id: selectedEvent.id });
+      await onEventDuplicate(selectedEvent.id);
+      console.log('[MonthCalendar] duplicateEvent success', { id: selectedEvent.id });
+      closeEventActions();
+      Alert.alert('Success', 'Event duplicated');
+    } catch (error) {
+      console.error('[MonthCalendar] duplicateEvent failed', error);
+      Alert.alert('Error', 'Failed to duplicate event.');
+    }
+  }, [closeEventActions, onEventDuplicate, selectedEvent]);
+
+  const handleEditSelectedEvent = useCallback(() => {
+    if (!selectedEvent) return;
+    closeEventActions();
+    router.push(`/create-event?mode=edit&eventId=${selectedEvent.id}`);
+  }, [closeEventActions, router, selectedEvent]);
+
+  const handleOpenSelectedEvent = useCallback(() => {
+    if (!selectedEvent) return;
+    closeEventActions();
+    router.push(`/event/${selectedEvent.id}`);
+  }, [closeEventActions, router, selectedEvent]);
+
 
   const handleDrop = async (targetDate: Date) => {
     if (!draggedEvent || !onEventUpdate) {
@@ -344,7 +345,7 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
                       const holidayDate = new Date(event.startISO);
                       router.push(`/create-event?mode=create&holidayName=${encodeURIComponent(event.title)}&holidayDate=${holidayDate.toISOString()}`);
                     } else {
-                      router.push(`/event/${event.id}`);
+                      openEventActions(event);
                     }
                   }
                 }}
@@ -436,6 +437,95 @@ export default function MonthCalendar({ events, selectedDate, onDateSelect, onEv
       </ScrollView>
 
       <Modal
+        visible={eventActionsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeEventActions}
+      >
+        <Pressable style={styles.eventActionsOverlay} onPress={closeEventActions} testID="monthCalendarEventActionsOverlay">
+          <Pressable style={styles.eventActionsCard} onPress={(e) => e.stopPropagation()} testID="monthCalendarEventActionsCard">
+            <Text style={styles.eventActionsTitle} numberOfLines={2}>
+              {selectedEvent?.title ?? ''}
+            </Text>
+            <Text style={styles.eventActionsMeta} numberOfLines={1}>
+              {selectedEvent
+                ? new Date(selectedEvent.startISO).toLocaleString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  })
+                : ''}
+            </Text>
+            {!!selectedEvent?.venue && <Text style={styles.eventActionsMeta} numberOfLines={1}>{selectedEvent.venue}</Text>}
+
+            <View style={styles.eventActionsButtonsRow}>
+              <Pressable style={styles.eventActionsPrimaryButton} onPress={handleOpenSelectedEvent} testID="monthCalendarOpenEventButton">
+                <Text style={styles.eventActionsPrimaryText}>Open</Text>
+              </Pressable>
+              <Pressable style={styles.eventActionsSecondaryButton} onPress={handleEditSelectedEvent} testID="monthCalendarEditEventButton">
+                <Text style={styles.eventActionsSecondaryText}>Edit</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.eventActionsButtonsRow}>
+              <Pressable style={styles.eventActionsSecondaryButton} onPress={handleDuplicateSelectedEvent} testID="monthCalendarDuplicateEventButton">
+                <Text style={styles.eventActionsSecondaryText}>Duplicate</Text>
+              </Pressable>
+              <Pressable
+                style={styles.eventActionsSecondaryButton}
+                onPress={() => {
+                  if (!selectedEvent) return;
+                  setDraggedEvent(selectedEvent);
+                  setDragMode('move');
+                  setIsDragging(true);
+                  closeEventActions();
+                }}
+                testID="monthCalendarMoveEventButton"
+              >
+                <Text style={styles.eventActionsSecondaryText}>Move</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.eventActionsButtonsRow}>
+              <Pressable
+                style={styles.eventActionsSecondaryButton}
+                onPress={() => {
+                  if (!selectedEvent) return;
+                  setDraggedEvent(selectedEvent);
+                  setDragMode('copy');
+                  setIsDragging(true);
+                  closeEventActions();
+                }}
+                testID="monthCalendarCopyEventButton"
+              >
+                <Text style={styles.eventActionsSecondaryText}>Copy</Text>
+              </Pressable>
+              <Pressable
+                style={styles.eventActionsDestructiveButton}
+                onPress={() => {
+                  if (!selectedEvent) return;
+                  Alert.alert('Delete Event', `Are you sure you want to delete "${selectedEvent.title}"?`, [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Delete', style: 'destructive', onPress: handleDeleteSelectedEvent },
+                  ]);
+                }}
+                testID="monthCalendarDeleteEventButton"
+              >
+                <Text style={styles.eventActionsDestructiveText}>Delete</Text>
+              </Pressable>
+            </View>
+
+            <Pressable style={styles.eventActionsCancelButton} onPress={closeEventActions} testID="monthCalendarCancelEventActionsButton">
+              <Text style={styles.eventActionsCancelText}>Close</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
         visible={showMonthPicker}
         transparent
         animationType="fade"
@@ -525,6 +615,86 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  eventActionsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    paddingHorizontal: 18,
+    justifyContent: 'center',
+  },
+  eventActionsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  eventActionsTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginBottom: 6,
+  },
+  eventActionsMeta: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  eventActionsButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  eventActionsPrimaryButton: {
+    flex: 1,
+    backgroundColor: '#1E3A8A',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  eventActionsPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  eventActionsSecondaryButton: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  eventActionsSecondaryText: {
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  eventActionsDestructiveButton: {
+    flex: 1,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  eventActionsDestructiveText: {
+    color: '#B91C1C',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  eventActionsCancelButton: {
+    marginTop: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  eventActionsCancelText: {
+    color: '#64748B',
+    fontSize: 14,
+    fontWeight: '700',
   },
   header: {
     flexDirection: 'row',
