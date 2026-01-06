@@ -149,7 +149,7 @@ export default function HomeScreen() {
       });
 
       if (address) {
-        const formattedAddress = `${address.street || ''} ${address.streetNumber || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
+        const formattedAddress = `${address.streetNumber || ''} ${address.street || ''}, ${address.city || ''}, ${address.region || ''}`.trim();
         setPickupAddress(formattedAddress || 'Current location');
       } else {
         setPickupAddress('Current location');
