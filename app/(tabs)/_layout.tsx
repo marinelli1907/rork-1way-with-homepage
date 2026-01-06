@@ -1,6 +1,10 @@
 import { Tabs } from 'expo-router';
 import { Compass, Calendar, User, Users, Bot, Home } from 'lucide-react-native';
 
+export const unstable_settings = {
+  initialRouteName: 'home',
+};
+
 export default function TabsLayout() {
   return (
     <Tabs
