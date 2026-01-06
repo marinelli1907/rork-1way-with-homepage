@@ -261,6 +261,9 @@ export default function EventDetailScreen() {
 
     setShowRideModal(false);
     
+    const petsCount = Math.max(0, (recipient.hasAnimals ? (recipient.animalCount ?? 0) : 0) ?? 0);
+    const accessibilityNeeds = (recipient.isHandicap ?? false) ? '1' : '0';
+
     router.push({
       pathname: '/select-driver',
       params: {
@@ -271,6 +274,8 @@ export default function EventDetailScreen() {
         pickupAddress,
         dropoffAddress,
         pickupTime: pickupTimeToUse.toISOString(),
+        petsCount: String(petsCount),
+        accessibilityNeeds,
       },
     });
   };

@@ -29,6 +29,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/providers/AuthProvider';
 import ScreenShell from '@/components/ScreenShell';
+import { useProfiles } from '@/providers/ProfilesProvider';
 
 type MenuItem = {
   icon: typeof User;
@@ -55,6 +56,7 @@ const MOCK_USER = {
 export default function ProfileScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
+  const { myProfile } = useProfiles();
 
   const handleEditProfile = () => {
     router.push('/edit-profile' as any);
@@ -260,19 +262,35 @@ export default function ProfileScreen() {
     return stars;
   };
 
+  const displayName = myProfile?.name ?? MOCK_USER.name;
+  const displayAvatar = myProfile?.avatar ?? MOCK_USER.avatar;
+  const hasAnimals = myProfile?.hasAnimals ?? false;
+  const animalCount = Math.max(0, myProfile?.animalCount ?? 0);
+  const animalsLabel = hasAnimals ? `${animalCount} animal${animalCount === 1 ? '' : 's'}` : 'No animals';
+  const handicapLabel = (myProfile?.isHandicap ?? false) ? 'Handicap: Yes' : 'Handicap: No';
+
   return (
     <ScreenShell>
 
         <View style={styles.userSummary}>
           <View style={styles.avatarContainer}>
             <Image
-              source={{ uri: MOCK_USER.avatar }}
+              source={{ uri: displayAvatar }}
               style={styles.avatar}
               resizeMode="cover"
             />
           </View>
 
-          <Text style={styles.userName}>{MOCK_USER.name}</Text>
+          <Text style={styles.userName}>{displayName}</Text>
+
+          <View style={styles.badgesRow}>
+            <View style={[styles.badge, (myProfile?.isHandicap ?? false) ? styles.badgeBlue : styles.badgeNeutral]}>
+              <Text style={styles.badgeText}>{handicapLabel}</Text>
+            </View>
+            <View style={[styles.badge, hasAnimals ? styles.badgeWarm : styles.badgeNeutral]}>
+              <Text style={styles.badgeText}>{animalsLabel}</Text>
+            </View>
+          </View>
 
           <View style={styles.ratingContainer}>
             <View style={styles.stars}>{renderStars(MOCK_USER.rating)}</View>
@@ -287,6 +305,7 @@ export default function ProfileScreen() {
               pressed && styles.editButtonPressed,
             ]}
             onPress={handleEditProfile}
+            testID="profileEditButton"
           >
             <Edit3 size={14} color="#2563EB" strokeWidth={2.5} />
             <Text style={styles.editButtonText}>Edit Profile</Text>
@@ -399,6 +418,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginBottom: 6,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  badgeBlue: {
+    backgroundColor: 'rgba(2, 132, 199, 0.12)',
+    borderColor: 'rgba(2, 132, 199, 0.25)',
+  },
+  badgeWarm: {
+    backgroundColor: 'rgba(217, 119, 6, 0.12)',
+    borderColor: 'rgba(217, 119, 6, 0.22)',
+  },
+  badgeNeutral: {
+    backgroundColor: 'rgba(148, 163, 184, 0.12)',
+    borderColor: 'rgba(148, 163, 184, 0.18)',
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#0F172A',
   },
   stars: {
     flexDirection: 'row',

@@ -27,7 +27,7 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
     x: false,
     discord: false,
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -122,12 +122,22 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
         position: updates.position,
         dateOfBirth: updates.dateOfBirth,
         createdAt: new Date().toISOString(),
+        isHandicap: updates.isHandicap ?? false,
+        hasAnimals: updates.hasAnimals ?? false,
+        animalCount: updates.animalCount ?? 0,
       };
       await saveMyProfile(newProfile);
       return newProfile;
     }
 
-    const updatedProfile = { ...myProfile, ...updates };
+    const normalizedUpdates: Partial<UserProfile> = {
+      ...updates,
+      isHandicap: updates.isHandicap ?? myProfile.isHandicap ?? false,
+      hasAnimals: updates.hasAnimals ?? myProfile.hasAnimals ?? false,
+      animalCount: updates.animalCount ?? myProfile.animalCount ?? 0,
+    };
+
+    const updatedProfile = { ...myProfile, ...normalizedUpdates };
     await saveMyProfile(updatedProfile);
     return updatedProfile;
   }, [myProfile]);

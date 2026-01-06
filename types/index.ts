@@ -242,6 +242,9 @@ export interface UserProfile {
   carYear?: string;
   carColor?: string;
   carImageUrl?: string;
+  isHandicap?: boolean;
+  hasAnimals?: boolean;
+  animalCount?: number;
 }
 
 export interface Contact {
@@ -316,6 +319,8 @@ export interface RideBooking {
   passengers?: number;
   luggage?: number;
   childSeats?: number;
+  petsCount?: number;
+  accessibilityNeeds?: boolean;
   rating?: number;
   tip?: number;
   completedAt?: string;

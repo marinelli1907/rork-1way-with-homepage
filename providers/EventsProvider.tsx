@@ -218,8 +218,10 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     const event = events.find(e => e.id === eventId);
     if (!event) return null;
 
+    const petsCount = rideData.petsCount ?? 0;
     const newRide: import('@/types').RideBooking = {
       ...rideData,
+      petsCount,
       id: `ride_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       bookedAt: new Date().toISOString(),
       status: 'confirmed',

@@ -150,6 +150,8 @@ export default function SelectDriverScreen() {
     pickupTime: string;
     preselect?: string;
     quickDriverId?: string;
+    petsCount?: string;
+    accessibilityNeeds?: string;
   }>();
 
   const [selectedOption, setSelectedOption] = useState<PricingOption>(null);
@@ -160,6 +162,8 @@ export default function SelectDriverScreen() {
   const [bidAmount, setBidAmount] = useState('');
   const [splitCostEnabled, setSplitCostEnabled] = useState(false);
   const [numberOfPassengers, setNumberOfPassengers] = useState(1);
+  const [petsCount, setPetsCount] = useState<number>(0);
+  const [accessibilityNeeds, setAccessibilityNeeds] = useState<boolean>(false);
   const [generatingVehicleImages, setGeneratingVehicleImages] = useState(false);
   const [showBidModal, setShowBidModal] = useState(false);
   const [bidsReceived, setBidsReceived] = useState<{ driverId: string; bidPrice: number }[]>([]);
@@ -176,7 +180,13 @@ export default function SelectDriverScreen() {
       const totalPassengers = event.invitedProfiles.length + 1;
       setNumberOfPassengers(totalPassengers);
     }
-  }, [event]);
+
+    const nextPets = Math.max(0, parseInt((params.petsCount ?? '0').toString() || '0', 10) || 0);
+    setPetsCount(nextPets);
+
+    const nextAccessibility = (params.accessibilityNeeds ?? '0').toString() === '1';
+    setAccessibilityNeeds(nextAccessibility);
+  }, [event, params.accessibilityNeeds, params.petsCount]);
 
 
   const loadDrivers = useCallback(async (optionForAutoSelect?: PricingOption) => {
@@ -358,6 +368,8 @@ export default function SelectDriverScreen() {
       },
       calendarEventId: calendarEventId || undefined,
       paymentMethodId: paymentMethod.id,
+      petsCount,
+      accessibilityNeeds,
     });
 
     if (newRide) {
