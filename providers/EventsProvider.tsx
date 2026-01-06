@@ -334,7 +334,6 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       tags: ['MLB', 'Guardians', 'home'],
       source: 'import' as const,
       notes: `Home game vs ${game.opponent}`,
-      isPublic: false,
     }));
 
     const existingIds = new Set(events.map(e => e.title + e.startISO));
@@ -710,8 +709,7 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
             source: 'import',
             notes: importedEvent.notes,
             calendarEventId: importedEvent.id,
-            isPublic: false,
-          };
+                };
 
           toAdd.push(newEvent);
           existingByCalendarId.add(importedEvent.id);

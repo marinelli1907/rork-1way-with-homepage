@@ -10,8 +10,6 @@ import {
   Edit,
   Copy,
   Check,
-  Globe,
-  Lock,
   Users,
   CheckCircle,
   MessageCircle,
@@ -671,26 +669,6 @@ export default function EventDetailScreen() {
             </View>
           )}
 
-          {event && (
-            <View style={styles.infoRow}>
-              {event.isPublic ? (
-                <Globe size={20} color="#059669" />
-              ) : (
-                <Lock size={20} color="#DC2626" />
-              )}
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Event Visibility</Text>
-                <Text style={[styles.infoValue, event.isPublic ? styles.publicText : styles.privateText]}>
-                  {event.isPublic ? 'Public Event' : 'Private Event'}
-                </Text>
-                <Text style={styles.infoSubtext}>
-                  {event.isPublic 
-                    ? 'Anyone on 1Way can view and attend this event'
-                    : 'Only invited people can see and attend this event'}
-                </Text>
-              </View>
-            </View>
-          )}
 
           {event?.invitedProfiles && event.invitedProfiles.length > 0 && (
             <View style={styles.infoRow}>
@@ -703,7 +681,6 @@ export default function EventDetailScreen() {
                   {event.invitedProfiles.map((profileId, index) => {
                     const profile = getProfile(profileId);
                     const attendee = event.attendees?.find(a => a.profileId === profileId);
-                    const isPublicProfile = attendee?.isPublic ?? profile?.eventPrivacyPublic ?? true;
                     
                     return (
                       <Pressable
@@ -732,17 +709,6 @@ export default function EventDetailScreen() {
                             </View>
                           )}
                         </View>
-                        {isPublicProfile ? (
-                          <View style={styles.privacyBadge}>
-                            <Globe size={12} color="#059669" strokeWidth={2} />
-                            <Text style={styles.privacyText}>Public</Text>
-                          </View>
-                        ) : (
-                          <View style={[styles.privacyBadge, styles.privacyBadgePrivate]}>
-                            <Lock size={12} color="#DC2626" strokeWidth={2} />
-                            <Text style={[styles.privacyText, styles.privacyTextPrivate]}>Private</Text>
-                          </View>
-                        )}
                       </Pressable>
                     );
                   })}

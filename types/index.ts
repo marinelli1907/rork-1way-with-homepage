@@ -22,7 +22,6 @@ export interface Event {
   notes?: string;
   ticketInfo?: TicketInfo;
   calendarEventId?: string;
-  isPublic?: boolean;
   invitedProfiles?: string[];
   verifiedAddress?: {
     lat: number;
@@ -196,7 +195,6 @@ export interface EventAttendee {
   status: 'pending' | 'accepted' | 'declined';
   invitedAt: string;
   respondedAt?: string;
-  isPublic?: boolean;
   rideInfo?: RideInfo;
 }
 

@@ -85,7 +85,6 @@ export default function RestaurantDetailsScreen() {
         tags: ['Dining'],
         source: 'manual',
         notes: specialRequests ? `Notes: ${specialRequests}` : undefined,
-        isPublic: false,
         verifiedAddress: {
           lat: restaurant.geo.lat,
           lng: restaurant.geo.lng,

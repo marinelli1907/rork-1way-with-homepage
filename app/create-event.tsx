@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Lock, Globe } from 'lucide-react-native';
+
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import BottomSheetModal from '@/components/BottomSheetModal';
@@ -123,7 +123,6 @@ export default function CreateEventScreen() {
   const [startAt, setStartAt] = useState<Date>(initialStart);
   const [endAt, setEndAt] = useState<Date>(initialEnd);
   const [notes, setNotes] = useState<string>(existingEvent?.notes ?? '');
-  const [isPublic, setIsPublic] = useState<boolean>(existingEvent?.isPublic ?? false);
 
   const hydratedFromExistingRef = useRef<boolean>(false);
 
@@ -147,7 +146,6 @@ export default function CreateEventScreen() {
     setStartAt(new Date(existingEvent.startISO));
     setEndAt(new Date(existingEvent.endISO));
     setNotes(existingEvent.notes ?? '');
-    setIsPublic(existingEvent.isPublic ?? false);
     if (Platform.OS === 'web') {
       setWebStartText(existingEvent.startISO);
       setWebEndText(existingEvent.endISO);
@@ -177,7 +175,7 @@ export default function CreateEventScreen() {
   }, [category]);
 
   const isDirty = useMemo(() => {
-    const baseDirty = title.trim() !== '' || venue.trim() !== '' || notes.trim() !== '' || isPublic;
+    const baseDirty = title.trim() !== '' || venue.trim() !== '' || notes.trim() !== '';
 
     if (mode === 'edit' && existingEvent) {
       const startISO = startAt.toISOString();
@@ -190,14 +188,13 @@ export default function CreateEventScreen() {
         addressValue.trim() !== (existingEvent.address ?? '').trim() ||
         notes.trim() !== (existingEvent.notes ?? '').trim() ||
         category !== existingEvent.category ||
-        isPublic !== (existingEvent.isPublic ?? false) ||
         startISO !== existingEvent.startISO ||
         endISO !== existingEvent.endISO
       );
     }
 
     return baseDirty;
-  }, [address, category, existingEvent, isPublic, mode, notes, startAt, endAt, title, venue]);
+  }, [address, category, existingEvent, mode, notes, startAt, endAt, title, venue]);
 
   const close = useCallback(() => {
     router.back();
@@ -255,7 +252,6 @@ export default function CreateEventScreen() {
       address: (address.trim() || venueValue) as string,
       color,
       notes: notes.trim() || undefined,
-      isPublic,
     };
 
     console.log('[create-event] payload prepared', { payload });
@@ -314,7 +310,6 @@ export default function CreateEventScreen() {
     updateEvent,
     validateWebDates,
     venue,
-    isPublic,
   ]);
 
   const saveButtonDisabled = mode === 'edit' ? !isDirty || !title.trim() : !title.trim();
@@ -463,30 +458,6 @@ export default function CreateEventScreen() {
         )}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Privacy</Text>
-        <View style={styles.privacyRow}>
-          <Pressable
-            style={[styles.privacyOption, !isPublic && styles.privacyOptionActive]}
-            onPress={() => setIsPublic(false)}
-            testID="eventPrivacyPrivate"
-          >
-            <Lock size={16} color={!isPublic ? '#FFFFFF' : '#64748B'} strokeWidth={2} />
-            <Text style={[styles.privacyText, !isPublic && styles.privacyTextActive]}>Private</Text>
-          </Pressable>
-          <Pressable
-            style={[
-              styles.privacyOption,
-              isPublic && styles.privacyOptionActive,
-            ]}
-            onPress={() => setIsPublic(true)}
-            testID="eventPrivacyPublic"
-          >
-            <Globe size={16} color={isPublic ? '#FFFFFF' : '#64748B'} strokeWidth={2} />
-            <Text style={[styles.privacyText, isPublic && styles.privacyTextActive]}>Public</Text>
-          </Pressable>
-        </View>
-      </View>
 
       <View style={styles.section}>
         <Text style={styles.label}>Notes</Text>
