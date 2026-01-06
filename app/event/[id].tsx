@@ -509,6 +509,18 @@ export default function EventDetailScreen() {
               <X size={24} color="#64748B" strokeWidth={2} />
             </Pressable>
           ),
+          headerRight: () => {
+            if (!isMyEvent || !event) return null;
+            return (
+              <Pressable
+                onPress={handleDelete}
+                style={{ padding: 8 }}
+                testID="eventDetailDeleteButton"
+              >
+                <Trash2 size={22} color="#DC2626" strokeWidth={2.2} />
+              </Pressable>
+            );
+          },
         }} 
       />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
