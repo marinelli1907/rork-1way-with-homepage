@@ -161,6 +161,13 @@ export default function CreateEventScreen() {
   const [openStartPicker, setOpenStartPicker] = useState<boolean>(false);
   const [openEndPicker, setOpenEndPicker] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (openStartPicker && openEndPicker) {
+      console.warn('[create-event] both pickers open; closing end picker');
+      setOpenEndPicker(false);
+    }
+  }, [openEndPicker, openStartPicker]);
+
   const [webStartText, setWebStartText] = useState<string>(() => startAt.toISOString());
   const [webEndText, setWebEndText] = useState<string>(() => endAt.toISOString());
 
@@ -434,13 +441,13 @@ export default function CreateEventScreen() {
           </View>
         )}
 
-        {openStartPicker && (
+        {Platform.OS === 'android' && openStartPicker && (
           <DateTimePicker
             value={startAt}
             mode="datetime"
-            display="spinner"
-            onChange={(e, d) => {
-              if (Platform.OS === 'android') setOpenStartPicker(false);
+            display="default"
+            onChange={(_, d) => {
+              setOpenStartPicker(false);
               if (d) {
                 setStartAt(d);
                 if (d > endAt) {
@@ -451,13 +458,13 @@ export default function CreateEventScreen() {
           />
         )}
 
-        {openEndPicker && (
+        {Platform.OS === 'android' && openEndPicker && (
           <DateTimePicker
             value={endAt}
             mode="datetime"
-            display="spinner"
-            onChange={(e, d) => {
-              if (Platform.OS === 'android') setOpenEndPicker(false);
+            display="default"
+            onChange={(_, d) => {
+              setOpenEndPicker(false);
               if (d) setEndAt(d);
             }}
           />
@@ -470,6 +477,24 @@ export default function CreateEventScreen() {
                 {openStartPicker ? 'Select Start Time' : 'Select End Time'}
               </Text>
             </View>
+
+            <DateTimePicker
+              value={openStartPicker ? startAt : endAt}
+              mode="datetime"
+              display="spinner"
+              onChange={(_, d) => {
+                if (!d) return;
+                if (openStartPicker) {
+                  setStartAt(d);
+                  if (d > endAt) {
+                    setEndAt(new Date(d.getTime() + 2 * 3600000));
+                  }
+                } else {
+                  setEndAt(d);
+                }
+              }}
+            />
+
             <Pressable
               style={styles.closePickerButton}
               onPress={() => {
