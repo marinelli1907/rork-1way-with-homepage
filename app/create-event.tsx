@@ -47,13 +47,16 @@ const CATEGORY_OPTIONS: CategoryOption[] = [
 ];
 
 function formatWhen(d: Date) {
-  return d.toLocaleString('en-US', {
+  const date = d.toLocaleString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
+  });
+  const time = d.toLocaleString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
   });
+  return `${date} at ${time}`;
 }
 
 function firstParam(v: string | string[] | undefined): string | undefined {
@@ -102,7 +105,10 @@ export default function CreateEventScreen() {
       return Number.isNaN(d.getTime()) ? new Date() : d;
     }
     if (holidayDate) return holidayDate;
-    return new Date();
+    
+    const now = new Date();
+    now.setHours(now.getHours() + 1, 0, 0, 0);
+    return now;
   }, [existingEvent?.startISO, holidayDate]);
 
   const initialEnd = useMemo(() => {
@@ -458,15 +464,22 @@ export default function CreateEventScreen() {
         )}
 
         {Platform.OS === 'ios' && (openStartPicker || openEndPicker) && (
-          <Pressable
-            style={styles.closePickerButton}
-            onPress={() => {
-              setOpenStartPicker(false);
-              setOpenEndPicker(false);
-            }}
-          >
-            <Text style={styles.closePickerText}>Done</Text>
-          </Pressable>
+          <View style={styles.pickerContainer}>
+            <View style={styles.pickerHeader}>
+              <Text style={styles.pickerTitle}>
+                {openStartPicker ? 'Select Start Time' : 'Select End Time'}
+              </Text>
+            </View>
+            <Pressable
+              style={styles.closePickerButton}
+              onPress={() => {
+                setOpenStartPicker(false);
+                setOpenEndPicker(false);
+              }}
+            >
+              <Text style={styles.closePickerText}>Done</Text>
+            </Pressable>
+          </View>
         )}
       </View>
 
@@ -592,16 +605,36 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#0F172A',
   },
+  pickerContainer: {
+    marginTop: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  pickerHeader: {
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  pickerTitle: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: '#0F172A',
+    textAlign: 'center',
+  },
   closePickerButton: {
-    backgroundColor: '#F1F5F9',
-    padding: 12,
+    backgroundColor: '#1E3A8A',
+    padding: 14,
     alignItems: 'center',
-    marginTop: 8,
-    borderRadius: 8,
   },
   closePickerText: {
-    color: '#0F172A',
+    color: '#FFFFFF',
     fontWeight: '600' as const,
+    fontSize: 16,
   },
   importedNote: {
     marginTop: 6,
