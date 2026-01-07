@@ -153,23 +153,62 @@ export default function CreateEventScreen() {
     setEndAt(new Date(existingEvent.endISO));
     setNotes(existingEvent.notes ?? '');
     if (Platform.OS === 'web') {
-      setWebStartText(existingEvent.startISO);
-      setWebEndText(existingEvent.endISO);
+      const start = new Date(existingEvent.startISO);
+      const end = new Date(existingEvent.endISO);
+      setWebStartDateText(toLocalDateInput(start));
+      setWebStartTimeText(toLocalTimeInput(start));
+      setWebEndDateText(toLocalDateInput(end));
+      setWebEndTimeText(toLocalTimeInput(end));
     }
   }, [existingEvent, mode]);
 
-  const [openStartPicker, setOpenStartPicker] = useState<boolean>(false);
-  const [openEndPicker, setOpenEndPicker] = useState<boolean>(false);
+  function toLocalDateInput(d: Date) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 
-  useEffect(() => {
-    if (openStartPicker && openEndPicker) {
-      console.warn('[create-event] both pickers open; closing end picker');
-      setOpenEndPicker(false);
-    }
-  }, [openEndPicker, openStartPicker]);
+  function toLocalTimeInput(d: Date) {
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
 
-  const [webStartText, setWebStartText] = useState<string>(() => startAt.toISOString());
-  const [webEndText, setWebEndText] = useState<string>(() => endAt.toISOString());
+  function parseLocalDateTime(dateText: string, timeText: string): Date | null {
+    const dateMatch = /^\d{4}-\d{2}-\d{2}$/.test(dateText.trim());
+    const timeMatch = /^\d{2}:\d{2}$/.test(timeText.trim());
+    if (!dateMatch || !timeMatch) return null;
+
+    const [y, m, d] = dateText.split('-').map((n) => Number(n));
+    const [hh, mm] = timeText.split(':').map((n) => Number(n));
+    const result = new Date(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0, 0, 0);
+    return Number.isNaN(result.getTime()) ? null : result;
+  }
+
+  function setDateKeepingTime(base: Date, date: Date) {
+    const next = new Date(base);
+    next.setFullYear(date.getFullYear(), date.getMonth(), date.getDate());
+    return next;
+  }
+
+  function setTimeKeepingDate(base: Date, time: Date) {
+    const next = new Date(base);
+    next.setHours(time.getHours(), time.getMinutes(), 0, 0);
+    return next;
+  }
+
+  type PickerTarget = 'start' | 'end';
+  type PickerStep = 'date' | 'time';
+
+  const [pickerVisible, setPickerVisible] = useState<boolean>(false);
+  const [pickerTarget, setPickerTarget] = useState<PickerTarget>('start');
+  const [pickerStep, setPickerStep] = useState<PickerStep>('date');
+
+  const [webStartDateText, setWebStartDateText] = useState<string>(() => toLocalDateInput(startAt));
+  const [webStartTimeText, setWebStartTimeText] = useState<string>(() => toLocalTimeInput(startAt));
+  const [webEndDateText, setWebEndDateText] = useState<string>(() => toLocalDateInput(endAt));
+  const [webEndTimeText, setWebEndTimeText] = useState<string>(() => toLocalTimeInput(endAt));
 
   const screenTitle = useMemo(() => {
     if (mode === 'edit') return 'Edit Event';
@@ -216,22 +255,22 @@ export default function CreateEventScreen() {
   const validateWebDates = useCallback(() => {
     if (Platform.OS !== 'web') return true;
 
-    const parsedStart = new Date(webStartText);
-    const parsedEnd = new Date(webEndText);
+    const parsedStart = parseLocalDateTime(webStartDateText, webStartTimeText);
+    const parsedEnd = parseLocalDateTime(webEndDateText, webEndTimeText);
 
-    if (Number.isNaN(parsedStart.getTime())) {
-      Alert.alert('Invalid start time', 'Enter a valid ISO date (example: 2026-01-05T19:30:00.000Z)');
+    if (!parsedStart) {
+      Alert.alert('Invalid start time', 'Use format YYYY-MM-DD and HH:MM (24h). Example: 2026-01-05 and 19:30');
       return false;
     }
-    if (Number.isNaN(parsedEnd.getTime())) {
-      Alert.alert('Invalid end time', 'Enter a valid ISO date (example: 2026-01-05T21:30:00.000Z)');
+    if (!parsedEnd) {
+      Alert.alert('Invalid end time', 'Use format YYYY-MM-DD and HH:MM (24h). Example: 2026-01-05 and 21:30');
       return false;
     }
 
     setStartAt(parsedStart);
     setEndAt(parsedEnd);
     return true;
-  }, [webEndText, webStartText]);
+  }, [webEndDateText, webEndTimeText, webStartDateText, webStartTimeText]);
 
   const submit = useCallback(async () => {
     console.log('[create-event] submit called', { mode, title: title.trim(), venue: venue.trim() });
@@ -400,111 +439,215 @@ export default function CreateEventScreen() {
         <Text style={styles.label}>Time</Text>
         {Platform.OS === 'web' ? (
           <View style={{ gap: 10 }}>
-            <TextInput
-              style={styles.input}
-              value={webStartText}
-              onChangeText={setWebStartText}
-              placeholder="Start ISO (2026-01-05T19:30:00.000Z)"
-              placeholderTextColor="#94A3B8"
-            />
-            <TextInput
-              style={styles.input}
-              value={webEndText}
-              onChangeText={setWebEndText}
-              placeholder="End ISO (2026-01-05T21:30:00.000Z)"
-              placeholderTextColor="#94A3B8"
-            />
-          </View>
-        ) : (
-          <View style={styles.timeRow}>
-            <Pressable 
-              style={styles.timeButton} 
-              onPress={() => {
-                setOpenEndPicker(false);
-                setOpenStartPicker(true);
-              }}
-            >
-              <Text style={styles.timeLabel}>Starts</Text>
-              <Text style={styles.timeValue}>{formatWhen(startAt)}</Text>
-            </Pressable>
-            <View style={styles.timeDivider} />
-            <Pressable 
-              style={styles.timeButton} 
-              onPress={() => {
-                setOpenStartPicker(false);
-                setOpenEndPicker(true);
-              }}
-            >
-              <Text style={styles.timeLabel}>Ends</Text>
-              <Text style={styles.timeValue}>{formatWhen(endAt)}</Text>
-            </Pressable>
-          </View>
-        )}
-
-        {Platform.OS === 'android' && openStartPicker && (
-          <DateTimePicker
-            value={startAt}
-            mode="datetime"
-            display="default"
-            onChange={(_, d) => {
-              setOpenStartPicker(false);
-              if (d) {
-                setStartAt(d);
-                if (d > endAt) {
-                  setEndAt(new Date(d.getTime() + 2 * 3600000));
-                }
-              }
-            }}
-          />
-        )}
-
-        {Platform.OS === 'android' && openEndPicker && (
-          <DateTimePicker
-            value={endAt}
-            mode="datetime"
-            display="default"
-            onChange={(_, d) => {
-              setOpenEndPicker(false);
-              if (d) setEndAt(d);
-            }}
-          />
-        )}
-
-        {Platform.OS === 'ios' && (openStartPicker || openEndPicker) && (
-          <View style={styles.pickerContainer}>
-            <View style={styles.pickerHeader}>
-              <Text style={styles.pickerTitle}>
-                {openStartPicker ? 'Select Start Time' : 'Select End Time'}
-              </Text>
+            <View style={styles.webWhenRow}>
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text style={styles.webWhenLabel}>Start date</Text>
+                <TextInput
+                  style={styles.input}
+                  value={webStartDateText}
+                  onChangeText={setWebStartDateText}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="none"
+                  testID="createEventStartDateWeb"
+                />
+              </View>
+              <View style={{ width: 12 }} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text style={styles.webWhenLabel}>Start time</Text>
+                <TextInput
+                  style={styles.input}
+                  value={webStartTimeText}
+                  onChangeText={setWebStartTimeText}
+                  placeholder="HH:MM"
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="none"
+                  testID="createEventStartTimeWeb"
+                />
+              </View>
             </View>
 
-            <DateTimePicker
-              value={openStartPicker ? startAt : endAt}
-              mode="datetime"
-              display="spinner"
-              onChange={(_, d) => {
-                if (!d) return;
-                if (openStartPicker) {
-                  setStartAt(d);
-                  if (d > endAt) {
-                    setEndAt(new Date(d.getTime() + 2 * 3600000));
-                  }
-                } else {
-                  setEndAt(d);
-                }
-              }}
-            />
-
-            <Pressable
-              style={styles.closePickerButton}
-              onPress={() => {
-                setOpenStartPicker(false);
-                setOpenEndPicker(false);
-              }}
-            >
-              <Text style={styles.closePickerText}>Done</Text>
-            </Pressable>
+            <View style={styles.webWhenRow}>
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text style={styles.webWhenLabel}>End date</Text>
+                <TextInput
+                  style={styles.input}
+                  value={webEndDateText}
+                  onChangeText={setWebEndDateText}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="none"
+                  testID="createEventEndDateWeb"
+                />
+              </View>
+              <View style={{ width: 12 }} />
+              <View style={{ flex: 1, gap: 8 }}>
+                <Text style={styles.webWhenLabel}>End time</Text>
+                <TextInput
+                  style={styles.input}
+                  value={webEndTimeText}
+                  onChangeText={setWebEndTimeText}
+                  placeholder="HH:MM"
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="none"
+                  testID="createEventEndTimeWeb"
+                />
+              </View>
+            </View>
           </View>
+        ) : (
+          <>
+            <View style={styles.timeRow}>
+              <Pressable
+                style={styles.timeButton}
+                onPress={() => {
+                  console.log('[create-event] open picker for start');
+                  setPickerTarget('start');
+                  setPickerStep('date');
+                  setPickerVisible(true);
+                }}
+                testID="createEventStartPicker"
+              >
+                <Text style={styles.timeLabel}>Starts</Text>
+                <Text style={styles.timeValue}>{formatWhen(startAt)}</Text>
+              </Pressable>
+              <View style={styles.timeDivider} />
+              <Pressable
+                style={styles.timeButton}
+                onPress={() => {
+                  console.log('[create-event] open picker for end');
+                  setPickerTarget('end');
+                  setPickerStep('date');
+                  setPickerVisible(true);
+                }}
+                testID="createEventEndPicker"
+              >
+                <Text style={styles.timeLabel}>Ends</Text>
+                <Text style={styles.timeValue}>{formatWhen(endAt)}</Text>
+              </Pressable>
+            </View>
+
+            {Platform.OS === 'android' && pickerVisible && (
+              <DateTimePicker
+                value={pickerTarget === 'start' ? startAt : endAt}
+                mode={pickerStep}
+                display="default"
+                onChange={(_, d) => {
+                  if (!d) {
+                    console.log('[create-event] android picker cancelled', { pickerTarget, pickerStep });
+                    setPickerVisible(false);
+                    return;
+                  }
+
+                  console.log('[create-event] android picker changed', {
+                    pickerTarget,
+                    pickerStep,
+                    iso: d.toISOString(),
+                  });
+
+                  if (pickerTarget === 'start') {
+                    const next = pickerStep === 'date' ? setDateKeepingTime(startAt, d) : setTimeKeepingDate(startAt, d);
+                    setStartAt(next);
+                    if (next > endAt) {
+                      setEndAt(new Date(next.getTime() + 2 * 3600000));
+                    }
+                  } else {
+                    const next = pickerStep === 'date' ? setDateKeepingTime(endAt, d) : setTimeKeepingDate(endAt, d);
+                    setEndAt(next);
+                  }
+
+                  if (pickerStep === 'date') {
+                    setPickerStep('time');
+                    return;
+                  }
+
+                  setPickerVisible(false);
+                }}
+              />
+            )}
+
+            {Platform.OS === 'ios' && pickerVisible && (
+              <View style={styles.pickerContainer} testID="createEventWhenPickerContainer">
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerTitle}>
+                    {pickerTarget === 'start' ? 'Start' : 'End'} • {pickerStep === 'date' ? 'Date' : 'Time'}
+                  </Text>
+                </View>
+
+                <View style={styles.pickerTabs}>
+                  <Pressable
+                    style={[styles.pickerTab, pickerStep === 'date' && styles.pickerTabActive]}
+                    onPress={() => setPickerStep('date')}
+                    testID="createEventPickerTabDate"
+                  >
+                    <Text style={[styles.pickerTabText, pickerStep === 'date' && styles.pickerTabTextActive]}>Date</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.pickerTab, pickerStep === 'time' && styles.pickerTabActive]}
+                    onPress={() => setPickerStep('time')}
+                    testID="createEventPickerTabTime"
+                  >
+                    <Text style={[styles.pickerTabText, pickerStep === 'time' && styles.pickerTabTextActive]}>Time</Text>
+                  </Pressable>
+                </View>
+
+                <DateTimePicker
+                  value={pickerTarget === 'start' ? startAt : endAt}
+                  mode={pickerStep}
+                  display={pickerStep === 'date' ? 'inline' : 'spinner'}
+                  onChange={(_, d) => {
+                    if (!d) return;
+
+                    console.log('[create-event] ios picker changed', {
+                      pickerTarget,
+                      pickerStep,
+                      iso: d.toISOString(),
+                    });
+
+                    if (pickerTarget === 'start') {
+                      const next = pickerStep === 'date' ? setDateKeepingTime(startAt, d) : setTimeKeepingDate(startAt, d);
+                      setStartAt(next);
+                      if (next > endAt) {
+                        setEndAt(new Date(next.getTime() + 2 * 3600000));
+                      }
+                    } else {
+                      const next = pickerStep === 'date' ? setDateKeepingTime(endAt, d) : setTimeKeepingDate(endAt, d);
+                      setEndAt(next);
+                    }
+                  }}
+                />
+
+                <View style={styles.pickerFooter}>
+                  <Pressable
+                    style={styles.pickerSecondaryBtn}
+                    onPress={() => {
+                      if (pickerStep === 'time') {
+                        setPickerStep('date');
+                      } else {
+                        setPickerVisible(false);
+                      }
+                    }}
+                    testID="createEventPickerBack"
+                  >
+                    <Text style={styles.pickerSecondaryBtnText}>{pickerStep === 'time' ? 'Back' : 'Close'}</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.closePickerButton}
+                    onPress={() => {
+                      if (pickerStep === 'date') {
+                        setPickerStep('time');
+                        return;
+                      }
+                      setPickerVisible(false);
+                    }}
+                    testID="createEventPickerNext"
+                  >
+                    <Text style={styles.closePickerText}>{pickerStep === 'date' ? 'Next' : 'Done'}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </>
         )}
       </View>
 
@@ -630,6 +773,15 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#0F172A',
   },
+  webWhenRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  webWhenLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#64748B',
+  },
   pickerContainer: {
     marginTop: 12,
     backgroundColor: '#FFFFFF',
@@ -651,9 +803,62 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     textAlign: 'center',
   },
+  pickerTabs: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  pickerTab: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+  },
+  pickerTabActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  pickerTabText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#334155',
+  },
+  pickerTabTextActive: {
+    color: '#FFFFFF',
+  },
+  pickerFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    paddingTop: 8,
+  },
+  pickerSecondaryBtn: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  pickerSecondaryBtnText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: '#0F172A',
+  },
   closePickerButton: {
+    flex: 1,
     backgroundColor: '#1E3A8A',
     padding: 14,
+    borderRadius: 14,
     alignItems: 'center',
   },
   closePickerText: {
