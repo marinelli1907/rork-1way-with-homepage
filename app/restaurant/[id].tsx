@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { ChevronLeft, MapPin, Phone, Clock, Star, Users, Globe, Car, Calendar as CalendarIcon } from 'lucide-react-native';
+import { ChevronLeft, MapPin, Phone, Clock, Star, Users, Globe, Car, Calendar as CalendarIcon, Plus, Minus } from 'lucide-react-native';
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
@@ -215,25 +215,27 @@ export default function RestaurantDetailsScreen() {
             
             <View style={styles.formSection}>
               <Text style={styles.formLabel}>Party Size</Text>
-              <View style={styles.partySizeSelector}>
-                {[1, 2, 3, 4, 5, 6, 7, 8].map((size) => (
-                  <Pressable
-                    key={size}
-                    style={[
-                      styles.partySizeButton,
-                      partySize === size && styles.partySizeButtonActive,
-                    ]}
-                    onPress={() => setPartySize(size)}
-                  >
-                    <Users size={16} color={partySize === size ? '#FFFFFF' : '#64748B'} />
-                    <Text style={[
-                      styles.partySizeText,
-                      partySize === size && styles.partySizeTextActive,
-                    ]}>
-                      {size}
-                    </Text>
-                  </Pressable>
-                ))}
+              <View style={styles.partySizeControl}>
+                <Pressable
+                  style={[styles.partySizeAdjustButton, partySize <= 1 && styles.partySizeAdjustButtonDisabled]}
+                  onPress={() => partySize > 1 && setPartySize(partySize - 1)}
+                  disabled={partySize <= 1}
+                >
+                  <Minus size={20} color={partySize <= 1 ? '#CBD5E1' : '#1E293B'} strokeWidth={2.5} />
+                </Pressable>
+                
+                <View style={styles.partySizeDisplay}>
+                  <Users size={20} color="#1E3A8A" />
+                  <Text style={styles.partySizeNumber}>{partySize}</Text>
+                  <Text style={styles.partySizeLabel}>{partySize === 1 ? 'person' : 'people'}</Text>
+                </View>
+                
+                <Pressable
+                  style={styles.partySizeAdjustButton}
+                  onPress={() => setPartySize(partySize + 1)}
+                >
+                  <Plus size={20} color="#1E293B" strokeWidth={2.5} />
+                </Pressable>
               </View>
             </View>
 
@@ -461,33 +463,42 @@ const styles = StyleSheet.create({
     color: '#1E293B',
     marginBottom: 12,
   },
-  partySizeSelector: {
+  partySizeControl: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  partySizeButton: {
-    width: 70,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     borderWidth: 2,
     borderColor: '#E2E8F0',
+    padding: 16,
+  },
+  partySizeAdjustButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 4,
   },
-  partySizeButtonActive: {
-    backgroundColor: '#1E3A8A',
-    borderColor: '#1E3A8A',
+  partySizeAdjustButtonDisabled: {
+    backgroundColor: '#F8FAFC',
+    opacity: 0.5,
   },
-  partySizeText: {
-    fontSize: 14,
+  partySizeDisplay: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  partySizeNumber: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    color: '#1E293B',
+  },
+  partySizeLabel: {
+    fontSize: 16,
     fontWeight: '600' as const,
     color: '#64748B',
-  },
-  partySizeTextActive: {
-    color: '#FFFFFF',
   },
   datesScroll: {
     gap: 8,
