@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import { ChevronLeft, MapPin, Phone, Clock, Star, Users, Globe, Car, Calendar as CalendarIcon, Plus, Minus } from 'lucide-react-native';
+import { ChevronLeft, MapPin, Phone, Clock, Star, Users, Globe, Car, Calendar as CalendarIcon, Plus, Minus, Info } from 'lucide-react-native';
 import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
@@ -11,7 +11,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { CLEVELAND_RESTAURANTS, generateAvailableTimeSlots } from '@/constants/restaurants';
+import { CLEVELAND_RESTAURANTS } from '@/constants/restaurants';
 import { useEvents } from '@/providers/EventsProvider';
 
 
@@ -24,7 +24,7 @@ export default function RestaurantDetailsScreen() {
   const [selectedDate, setSelectedDate] = useState(0);
   const [partySize, setPartySize] = useState(2);
   const [specialRequests, setSpecialRequests] = useState('');
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [customTime, setCustomTime] = useState('');
 
   const dates = useMemo(() => {
     const result: Date[] = [];
@@ -36,31 +36,28 @@ export default function RestaurantDetailsScreen() {
     return result;
   }, []);
 
-  const timeSlots = useMemo(() => {
-    if (!restaurant) return [];
-    return generateAvailableTimeSlots(restaurant.id, dates[selectedDate].toISOString());
-  }, [restaurant, selectedDate, dates]);
-
   const reservationDateTime = useMemo(() => {
-    if (!selectedTime) return null;
+    if (!customTime.trim()) return null;
     const selectedDateObj = dates[selectedDate];
-    const parts = selectedTime.split(' ');
-    const hm = parts[0] ?? '';
-    const period = parts[1] ?? '';
-    const [hStr, mStr] = hm.split(':');
-    let hour = parseInt(hStr || '0', 10);
-    const minute = parseInt(mStr || '0', 10);
-    if (period.toUpperCase() === 'PM' && hour !== 12) hour += 12;
-    if (period.toUpperCase() === 'AM' && hour === 12) hour = 0;
+    
+    const timeParts = customTime.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/i);
+    if (!timeParts) return null;
+    
+    let hour = parseInt(timeParts[1] || '0', 10);
+    const minute = parseInt(timeParts[2] || '0', 10);
+    const period = timeParts[3]?.toUpperCase();
+    
+    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    
+    if (period) {
+      if (period === 'PM' && hour !== 12) hour += 12;
+      if (period === 'AM' && hour === 12) hour = 0;
+    }
 
     const dt = new Date(selectedDateObj);
     dt.setHours(hour, minute, 0, 0);
     return dt;
-  }, [dates, selectedDate, selectedTime]);
-
-  const handlePickTime = useCallback((time: string) => {
-    setSelectedTime(time);
-  }, []);
+  }, [dates, selectedDate, customTime]);
 
   const handleAddToCalendar = useCallback(async () => {
     if (!restaurant) return;
@@ -273,29 +270,18 @@ export default function RestaurantDetailsScreen() {
             </View>
 
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Select Time</Text>
-              <View style={styles.timeSlotsGrid}>
-                {timeSlots.map((slot) => (
-                  <Pressable
-                    key={slot.time}
-                    style={[
-                      styles.timeSlotButton,
-                      !slot.available && styles.timeSlotButtonDisabled,
-                      selectedTime === slot.time && styles.timeSlotButtonSelected,
-                    ]}
-                    onPress={() => slot.available && handlePickTime(slot.time)}
-                    disabled={!slot.available}
-                    testID={`restaurantTimeSlot_${slot.time.replace(/\s+/g, '_')}`}
-                  >
-                    <Text style={[
-                      styles.timeSlotText,
-                      !slot.available && styles.timeSlotTextDisabled,
-                      selectedTime === slot.time && styles.timeSlotTextSelected,
-                    ]}>
-                      {slot.time}
-                    </Text>
-                  </Pressable>
-                ))}
+              <Text style={styles.formLabel}>Enter Time</Text>
+              <TextInput
+                style={styles.timeInput}
+                placeholder="e.g., 7:30 PM or 19:30"
+                placeholderTextColor="#94A3B8"
+                value={customTime}
+                onChangeText={setCustomTime}
+                testID="restaurantTimeInput"
+              />
+              <View style={styles.infoBox}>
+                <Info size={16} color="#3B82F6" />
+                <Text style={styles.infoText2}>This does not create an actual reservation at the restaurant. It only adds to your calendar.</Text>
               </View>
             </View>
 
@@ -535,38 +521,34 @@ const styles = StyleSheet.create({
   dateNumberActive: {
     color: '#FFFFFF',
   },
-  timeSlotsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  timeSlotButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+  timeInput: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     borderWidth: 2,
     borderColor: '#E2E8F0',
-  },
-  timeSlotButtonDisabled: {
-    backgroundColor: '#F1F5F9',
-    borderColor: '#E2E8F0',
-    opacity: 0.5,
-  },
-  timeSlotButtonSelected: {
-    backgroundColor: '#0F172A',
-    borderColor: '#0F172A',
-  },
-  timeSlotText: {
-    fontSize: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
     fontWeight: '600' as const,
     color: '#1E293B',
+    marginBottom: 12,
   },
-  timeSlotTextDisabled: {
-    color: '#94A3B8',
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
   },
-  timeSlotTextSelected: {
-    color: '#FFFFFF',
+  infoText2: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#1E40AF',
+    fontWeight: '500' as const,
   },
   ctaRow: {
     gap: 10,
