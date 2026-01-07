@@ -404,12 +404,24 @@ export default function CreateEventScreen() {
           </View>
         ) : (
           <View style={styles.timeRow}>
-            <Pressable style={styles.timeButton} onPress={() => setOpenStartPicker(true)}>
+            <Pressable 
+              style={styles.timeButton} 
+              onPress={() => {
+                setOpenEndPicker(false);
+                setOpenStartPicker(true);
+              }}
+            >
               <Text style={styles.timeLabel}>Starts</Text>
               <Text style={styles.timeValue}>{formatWhen(startAt)}</Text>
             </Pressable>
             <View style={styles.timeDivider} />
-            <Pressable style={styles.timeButton} onPress={() => setOpenEndPicker(true)}>
+            <Pressable 
+              style={styles.timeButton} 
+              onPress={() => {
+                setOpenStartPicker(false);
+                setOpenEndPicker(true);
+              }}
+            >
               <Text style={styles.timeLabel}>Ends</Text>
               <Text style={styles.timeValue}>{formatWhen(endAt)}</Text>
             </Pressable>
