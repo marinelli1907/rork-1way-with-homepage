@@ -1019,18 +1019,6 @@ export default function EventDetailScreen() {
                     </Pressable>
                   </View>
 
-                  <DateTimePickerModal
-                    visible={showRideTimeModal}
-                    title="Pickup time"
-                    initialValue={{ date: customPickupTime, isASAP: useASAP }}
-                    allowASAP
-                    mode="ride"
-                    onCancel={() => {
-                      console.log('EventDetailScreen.rideTimeModal cancel');
-                      setShowRideTimeModal(false);
-                    }}
-                    onDone={handleRideTimeDone}
-                  />
                 </View>
               </View>
 
@@ -1095,6 +1083,19 @@ export default function EventDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <DateTimePickerModal
+        visible={showRideTimeModal}
+        title="Pickup time"
+        initialValue={{ date: customPickupTime, isASAP: useASAP }}
+        allowASAP
+        mode="ride"
+        onCancel={() => {
+          console.log('EventDetailScreen.rideTimeModal cancel');
+          setShowRideTimeModal(false);
+        }}
+        onDone={handleRideTimeDone}
+      />
 
       <Modal
         visible={showScheduleModal}

@@ -37,6 +37,11 @@ export function roundUpToInterval(date: Date, intervalMinutes: number): Date {
   const remainder = minutes % intervalMinutes;
   const add = remainder === 0 ? 0 : intervalMinutes - remainder;
   out.setMinutes(minutes + add);
+
+  if (out.getTime() <= date.getTime()) {
+    out.setMinutes(out.getMinutes() + intervalMinutes);
+  }
+
   return out;
 }
 
@@ -231,8 +236,13 @@ export default function DateTimePickerModal({
     console.log('[DateTimePickerModal] done', {
       title,
       isASAP: draftIsASAP,
-      iso: draftDate.toISOString(),
+      iso: draftDate?.toISOString?.(),
     });
+
+    if (draftIsASAP) {
+      onDone({ date: new Date(), isASAP: true });
+      return;
+    }
 
     if (Platform.OS === 'web') {
       const parsed = parseWebDateTime(webDateText, webTimeText);
@@ -240,16 +250,7 @@ export default function DateTimePickerModal({
         Alert.alert('Invalid date/time', 'Use MM/DD/YYYY and a valid time (e.g. 7:30 PM).');
         return;
       }
-      if (draftIsASAP) {
-        onDone({ date: new Date(), isASAP: true });
-        return;
-      }
       onDone({ date: parsed, isASAP: false });
-      return;
-    }
-
-    if (draftIsASAP) {
-      onDone({ date: new Date(), isASAP: true });
       return;
     }
 
@@ -306,7 +307,6 @@ export default function DateTimePickerModal({
                     console.log('[DateTimePickerModal] set ASAP true');
                     closeAllPickers();
                     setDraftIsASAP(true);
-                    setDraftDate(new Date());
                   }}
                   style={[
                     styles.asapPill,
