@@ -274,6 +274,7 @@ export default function EventDetailScreen() {
         pickupTime: pickupTimeToUse.toISOString(),
         petsCount: String(petsCount),
         accessibilityNeeds,
+        preselect: 'app_price',
       },
     });
   };
