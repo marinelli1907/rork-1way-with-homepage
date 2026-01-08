@@ -199,11 +199,11 @@ export default function CreateEventScreen() {
   }
 
   type PickerTarget = 'start' | 'end';
-  type PickerStep = 'date' | 'time';
+  type PickerMode = 'date' | 'time';
 
   const [pickerVisible, setPickerVisible] = useState<boolean>(false);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget>('start');
-  const [pickerStep, setPickerStep] = useState<PickerStep>('date');
+  const [pickerMode, setPickerMode] = useState<PickerMode>('date');
 
   const [webStartDateText, setWebStartDateText] = useState<string>(() => toLocalDateInput(startAt));
   const [webStartTimeText, setWebStartTimeText] = useState<string>(() => toLocalTimeInput(startAt));
@@ -497,32 +497,32 @@ export default function CreateEventScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.timeRow}>
+            <View style={{ gap: 12 }}>
               <Pressable
-                style={styles.timeButton}
+                style={styles.timeCard}
                 onPress={() => {
                   console.log('[create-event] open picker for start');
                   setPickerTarget('start');
-                  setPickerStep('date');
+                  setPickerMode('date');
                   setPickerVisible(true);
                 }}
                 testID="createEventStartPicker"
               >
-                <Text style={styles.timeLabel}>Starts</Text>
+                <Text style={styles.timeLabel}>Start</Text>
                 <Text style={styles.timeValue}>{formatWhen(startAt)}</Text>
               </Pressable>
-              <View style={styles.timeDivider} />
+
               <Pressable
-                style={styles.timeButton}
+                style={styles.timeCard}
                 onPress={() => {
                   console.log('[create-event] open picker for end');
                   setPickerTarget('end');
-                  setPickerStep('date');
+                  setPickerMode('date');
                   setPickerVisible(true);
                 }}
                 testID="createEventEndPicker"
               >
-                <Text style={styles.timeLabel}>Ends</Text>
+                <Text style={styles.timeLabel}>End</Text>
                 <Text style={styles.timeValue}>{formatWhen(endAt)}</Text>
               </Pressable>
             </View>
@@ -530,38 +530,58 @@ export default function CreateEventScreen() {
             {Platform.OS === 'android' && pickerVisible && (
               <DateTimePicker
                 value={pickerTarget === 'start' ? startAt : endAt}
-                mode={pickerStep}
+                mode={pickerMode}
                 display="default"
-                onChange={(_, d) => {
-                  if (!d) {
-                    console.log('[create-event] android picker cancelled', { pickerTarget, pickerStep });
+                onChange={(event, selectedDate) => {
+                  if (event.type === 'dismissed') {
+                    console.log('[create-event] android picker cancelled');
                     setPickerVisible(false);
+                    setPickerMode('date');
+                    return;
+                  }
+
+                  if (!selectedDate) {
+                    setPickerVisible(false);
+                    setPickerMode('date');
                     return;
                   }
 
                   console.log('[create-event] android picker changed', {
                     pickerTarget,
-                    pickerStep,
-                    iso: d.toISOString(),
+                    pickerMode,
+                    iso: selectedDate.toISOString(),
                   });
 
-                  if (pickerTarget === 'start') {
-                    const next = pickerStep === 'date' ? setDateKeepingTime(startAt, d) : setTimeKeepingDate(startAt, d);
-                    setStartAt(next);
-                    if (next > endAt) {
-                      setEndAt(new Date(next.getTime() + 2 * 3600000));
+                  if (pickerMode === 'date') {
+                    const current = pickerTarget === 'start' ? startAt : endAt;
+                    const updated = setDateKeepingTime(current, selectedDate);
+                    
+                    if (pickerTarget === 'start') {
+                      setStartAt(updated);
+                      if (updated > endAt) {
+                        setEndAt(new Date(updated.getTime() + 2 * 3600000));
+                      }
+                    } else {
+                      setEndAt(updated);
                     }
+                    
+                    setPickerMode('time');
                   } else {
-                    const next = pickerStep === 'date' ? setDateKeepingTime(endAt, d) : setTimeKeepingDate(endAt, d);
-                    setEndAt(next);
+                    const current = pickerTarget === 'start' ? startAt : endAt;
+                    const updated = setTimeKeepingDate(current, selectedDate);
+                    
+                    if (pickerTarget === 'start') {
+                      setStartAt(updated);
+                      if (updated > endAt) {
+                        setEndAt(new Date(updated.getTime() + 2 * 3600000));
+                      }
+                    } else {
+                      setEndAt(updated);
+                    }
+                    
+                    setPickerVisible(false);
+                    setPickerMode('date');
                   }
-
-                  if (pickerStep === 'date') {
-                    setPickerStep('time');
-                    return;
-                  }
-
-                  setPickerVisible(false);
                 }}
               />
             )}
@@ -570,79 +590,62 @@ export default function CreateEventScreen() {
               <View style={styles.pickerContainer} testID="createEventWhenPickerContainer">
                 <View style={styles.pickerHeader}>
                   <Text style={styles.pickerTitle}>
-                    {pickerTarget === 'start' ? 'Start' : 'End'} • {pickerStep === 'date' ? 'Date' : 'Time'}
+                    {pickerTarget === 'start' ? 'Start' : 'End'} {pickerMode === 'date' ? 'Date' : 'Time'}
                   </Text>
-                </View>
-
-                <View style={styles.pickerTabs}>
-                  <Pressable
-                    style={[styles.pickerTab, pickerStep === 'date' && styles.pickerTabActive]}
-                    onPress={() => setPickerStep('date')}
-                    testID="createEventPickerTabDate"
-                  >
-                    <Text style={[styles.pickerTabText, pickerStep === 'date' && styles.pickerTabTextActive]}>Date</Text>
-                  </Pressable>
-                  <Pressable
-                    style={[styles.pickerTab, pickerStep === 'time' && styles.pickerTabActive]}
-                    onPress={() => setPickerStep('time')}
-                    testID="createEventPickerTabTime"
-                  >
-                    <Text style={[styles.pickerTabText, pickerStep === 'time' && styles.pickerTabTextActive]}>Time</Text>
-                  </Pressable>
                 </View>
 
                 <DateTimePicker
                   value={pickerTarget === 'start' ? startAt : endAt}
-                  mode={pickerStep}
-                  display={pickerStep === 'date' ? 'inline' : 'spinner'}
-                  onChange={(_, d) => {
-                    if (!d) return;
+                  mode={pickerMode}
+                  display={pickerMode === 'date' ? 'inline' : 'spinner'}
+                  onChange={(_, selectedDate) => {
+                    if (!selectedDate) return;
 
                     console.log('[create-event] ios picker changed', {
                       pickerTarget,
-                      pickerStep,
-                      iso: d.toISOString(),
+                      pickerMode,
+                      iso: selectedDate.toISOString(),
                     });
 
+                    const current = pickerTarget === 'start' ? startAt : endAt;
+                    const updated = pickerMode === 'date' 
+                      ? setDateKeepingTime(current, selectedDate)
+                      : setTimeKeepingDate(current, selectedDate);
+
                     if (pickerTarget === 'start') {
-                      const next = pickerStep === 'date' ? setDateKeepingTime(startAt, d) : setTimeKeepingDate(startAt, d);
-                      setStartAt(next);
-                      if (next > endAt) {
-                        setEndAt(new Date(next.getTime() + 2 * 3600000));
+                      setStartAt(updated);
+                      if (updated > endAt) {
+                        setEndAt(new Date(updated.getTime() + 2 * 3600000));
                       }
                     } else {
-                      const next = pickerStep === 'date' ? setDateKeepingTime(endAt, d) : setTimeKeepingDate(endAt, d);
-                      setEndAt(next);
+                      setEndAt(updated);
                     }
                   }}
                 />
 
                 <View style={styles.pickerFooter}>
+                  {pickerMode === 'time' && (
+                    <Pressable
+                      style={styles.pickerSecondaryBtn}
+                      onPress={() => setPickerMode('date')}
+                      testID="createEventPickerBack"
+                    >
+                      <Text style={styles.pickerSecondaryBtnText}>Back to Date</Text>
+                    </Pressable>
+                  )}
                   <Pressable
-                    style={styles.pickerSecondaryBtn}
+                    style={[styles.closePickerButton, pickerMode === 'time' && { flex: 1 }]}
                     onPress={() => {
-                      if (pickerStep === 'time') {
-                        setPickerStep('date');
+                      if (pickerMode === 'date') {
+                        setPickerMode('time');
                       } else {
                         setPickerVisible(false);
+                        setPickerMode('date');
                       }
-                    }}
-                    testID="createEventPickerBack"
-                  >
-                    <Text style={styles.pickerSecondaryBtnText}>{pickerStep === 'time' ? 'Back' : 'Close'}</Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.closePickerButton}
-                    onPress={() => {
-                      if (pickerStep === 'date') {
-                        setPickerStep('time');
-                        return;
-                      }
-                      setPickerVisible(false);
                     }}
                     testID="createEventPickerNext"
                   >
-                    <Text style={styles.closePickerText}>{pickerStep === 'date' ? 'Next' : 'Done'}</Text>
+                    <Text style={styles.closePickerText}>{pickerMode === 'date' ? 'Next: Time' : 'Done'}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -746,22 +749,12 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#64748B',
   },
-  timeRow: {
-    flexDirection: 'row',
+  timeCard: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 12,
-    overflow: 'hidden',
-  },
-  timeButton: {
-    flex: 1,
     padding: 16,
-    justifyContent: 'center',
-  },
-  timeDivider: {
-    width: 1,
-    backgroundColor: '#E2E8F0',
   },
   timeLabel: {
     fontSize: 12,
@@ -803,36 +796,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     textAlign: 'center',
   },
-  pickerTabs: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  pickerTab: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
-    alignItems: 'center',
-  },
-  pickerTabActive: {
-    backgroundColor: '#0F172A',
-    borderColor: '#0F172A',
-  },
-  pickerTabText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: '#334155',
-  },
-  pickerTabTextActive: {
-    color: '#FFFFFF',
-  },
+
   pickerFooter: {
     flexDirection: 'row',
     gap: 12,
@@ -855,7 +819,7 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
   closePickerButton: {
-    flex: 1,
+    flex: 2,
     backgroundColor: '#1E3A8A',
     padding: 14,
     borderRadius: 14,
