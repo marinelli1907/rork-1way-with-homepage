@@ -209,7 +209,7 @@ export default function SelectDriverScreen() {
 
       if (optionForAutoSelect === 'app_price' && sortedDrivers.length > 0) {
         const nearestDriver = sortedDrivers[0];
-        console.log('[select-driver] auto-select nearest driver:', nearestDriver.name);
+        console.log('[select-driver] auto-assign nearest driver for app price:', nearestDriver.name);
         setSelectedDriver(nearestDriver);
       }
     } catch (error) {
@@ -674,6 +674,8 @@ export default function SelectDriverScreen() {
     );
   }
 
+  const shouldHideDriverSelection = selectedOption === 'app_price' && !biddingMode;
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <View style={styles.header}>
@@ -732,6 +734,47 @@ export default function SelectDriverScreen() {
           onCouponRemoved={() => setAppliedCoupon(null)}
           appliedCoupon={appliedCoupon}
         />
+
+        {shouldHideDriverSelection && (
+          <View style={styles.appPriceCard} testID="app-price-summary">
+            <View style={styles.appPriceTopRow}>
+              <View style={styles.appPricePill}>
+                <Zap size={14} color="#FFFFFF" />
+                <Text style={styles.appPricePillText}>APP PRICE</Text>
+              </View>
+              <Text style={styles.appPriceAmount} testID="app-price-amount">
+                ${selectedDriver ? calculateFinalPrice(selectedDriver) : basePrice.toFixed(2)}
+              </Text>
+            </View>
+
+            <Text style={styles.appPriceHeadline}>
+              You’re getting matched with the closest available driver.
+            </Text>
+
+            <View style={styles.appPriceMetaRow}>
+              <View style={styles.appPriceMetaItem}>
+                <Clock size={16} color="#059669" />
+                <Text style={styles.appPriceMetaText} testID="app-price-eta">
+                  {selectedDriver ? `${selectedDriver.estimatedArrival} min pickup` : 'Finding nearby drivers…'}
+                </Text>
+              </View>
+              <View style={styles.appPriceMetaItem}>
+                <MapPin size={16} color="#1E3A8A" />
+                <Text style={styles.appPriceMetaText} numberOfLines={1}>
+                  {selectedDriver ? `${selectedDriver.distance.toFixed(1)} mi away` : ''}
+                </Text>
+              </View>
+            </View>
+
+            {!!appliedCoupon && (
+              <View style={styles.appPriceCouponRow}>
+                <Text style={styles.appPriceCouponText} testID="app-price-coupon">
+                  Coupon applied: {appliedCoupon.coupon.code}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={styles.splitCostCard}>
           <View style={styles.splitCostHeader}>
@@ -795,11 +838,13 @@ export default function SelectDriverScreen() {
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>
-          {biddingMode ? 'Select Best Bid' : `${drivers.length} driver${drivers.length !== 1 ? 's' : ''} nearby`}
-        </Text>
+        {!shouldHideDriverSelection && (
+          <Text style={styles.sectionTitle}>
+            {biddingMode ? 'Select Best Bid' : `${drivers.length} driver${drivers.length !== 1 ? 's' : ''} nearby`}
+          </Text>
+        )}
 
-        {drivers.map((driver, index) => {
+        {!shouldHideDriverSelection && drivers.map((driver, index) => {
           const isSelected = selectedDriver?.id === driver.id;
           const finalPrice = calculateFinalPrice(driver);
           const isNearest = index === 0;
@@ -917,9 +962,15 @@ export default function SelectDriverScreen() {
 
       {selectedDriver && (
         <View style={styles.footer}>
-          <Pressable style={styles.confirmButton} onPress={handleConfirmDriver}>
+          <Pressable
+            testID="confirm-ride"
+            style={styles.confirmButton}
+            onPress={handleConfirmDriver}
+          >
             <Text style={styles.confirmButtonText}>
-              Confirm Ride with {selectedDriver.name}
+              {selectedOption === 'app_price'
+                ? `Book Ride for ${calculateFinalPrice(selectedDriver)}`
+                : `Confirm Ride with ${selectedDriver.name}`}
             </Text>
             <ArrowRight size={20} color="#FFFFFF" />
           </Pressable>
@@ -1226,6 +1277,74 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: '#1E293B',
     marginBottom: 16,
+  },
+  appPriceCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  appPriceTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  appPricePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: '#1E3A8A',
+  },
+  appPricePillText: {
+    fontSize: 11,
+    fontWeight: '800' as const,
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
+  },
+  appPriceAmount: {
+    fontSize: 26,
+    fontWeight: '900' as const,
+    color: '#059669',
+  },
+  appPriceHeadline: {
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#334155',
+    fontWeight: '600' as const,
+    marginBottom: 14,
+  },
+  appPriceMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  appPriceMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  appPriceMetaText: {
+    fontSize: 13,
+    color: '#475569',
+    fontWeight: '600' as const,
+  },
+  appPriceCouponRow: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  appPriceCouponText: {
+    fontSize: 13,
+    color: '#7C3AED',
+    fontWeight: '700' as const,
   },
   driverCard: {
     backgroundColor: '#FFFFFF',
