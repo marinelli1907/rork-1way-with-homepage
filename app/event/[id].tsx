@@ -37,8 +37,8 @@ import {
   Modal,
   Image,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useEvents } from '@/providers/EventsProvider';
+import DateTimePickerModal, { DateTimePickerResult } from '@/components/DateTimePickerModal';
 import { useProfiles } from '@/providers/ProfilesProvider';
 import { calculateRideQuote } from '@/utils/pricing';
 import { RideBooking } from '@/types';
@@ -59,8 +59,7 @@ export default function EventDetailScreen() {
   const [selectedRecipients, setSelectedRecipients] = useState<Set<string>>(new Set());
   const [customPickupTime, setCustomPickupTime] = useState<Date>(new Date());
   const [useASAP, setUseASAP] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showRideTimeModal, setShowRideTimeModal] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSplitCostModal, setShowSplitCostModal] = useState(false);
   const [selectedRideForSplit, setSelectedRideForSplit] = useState<RideBooking | null>(null);
@@ -178,8 +177,7 @@ export default function EventDetailScreen() {
     const defaultPickupTime = type === 'arrival' ? arrivalPickupTime : returnPickupTime;
     setCustomPickupTime(defaultPickupTime);
     setUseASAP(false);
-    setShowTimePicker(false);
-    setShowDatePicker(false);
+    setShowRideTimeModal(false);
     setShowRideModal(true);
   };
 
@@ -279,35 +277,22 @@ export default function EventDetailScreen() {
     });
   };
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowDatePicker(false);
-    }
-    if (selectedDate) {
-      setCustomPickupTime(selectedDate);
-      setUseASAP(false);
-      if (Platform.OS === 'android') {
-        setShowTimePicker(true);
-      }
-    }
-  };
-
-  const handleTimeChange = (event: any, selectedTime?: Date) => {
-    if (Platform.OS === 'android') {
-      setShowTimePicker(false);
-    }
-    if (selectedTime) {
-      const newDateTime = new Date(customPickupTime);
-      newDateTime.setHours(selectedTime.getHours());
-      newDateTime.setMinutes(selectedTime.getMinutes());
-      setCustomPickupTime(newDateTime);
-      setUseASAP(false);
-    }
-  };
-
   const handleASAPToggle = () => {
+    console.log('EventDetailScreen.handleASAPToggle');
     setUseASAP(true);
     setCustomPickupTime(new Date());
+    setShowRideTimeModal(false);
+  };
+
+  const handleRideTimeDone = (res: DateTimePickerResult) => {
+    console.log('EventDetailScreen.handleRideTimeDone', {
+      isASAP: res.isASAP,
+      iso: res.date.toISOString(),
+    });
+
+    setShowRideTimeModal(false);
+    setUseASAP(res.isASAP);
+    setCustomPickupTime(res.date);
   };
 
   const handleCancelRide = (rideId: string, forProfileName: string) => {
@@ -995,12 +980,14 @@ export default function EventDetailScreen() {
                   <Text style={styles.customTimeLabel}>Pick Custom Time</Text>
                   
                   <View style={styles.pickerButtonsRow}>
-                    <Pressable 
+                    <Pressable
                       style={styles.pickerButton}
                       onPress={() => {
+                        console.log('EventDetailScreen.openRideTimeModal (date button)');
                         setUseASAP(false);
-                        setShowDatePicker(true);
+                        setShowRideTimeModal(true);
                       }}
+                      testID="ridePickupDateButton"
                     >
                       <Calendar size={18} color="#1E3A8A" />
                       <Text style={styles.pickerButtonText}>
@@ -1011,13 +998,15 @@ export default function EventDetailScreen() {
                         })}
                       </Text>
                     </Pressable>
-                    
-                    <Pressable 
+
+                    <Pressable
                       style={styles.pickerButton}
                       onPress={() => {
+                        console.log('EventDetailScreen.openRideTimeModal (time button)');
                         setUseASAP(false);
-                        setShowTimePicker(true);
+                        setShowRideTimeModal(true);
                       }}
+                      testID="ridePickupTimeButton"
                     >
                       <Clock size={18} color="#1E3A8A" />
                       <Text style={styles.pickerButtonText}>
@@ -1029,60 +1018,19 @@ export default function EventDetailScreen() {
                       </Text>
                     </Pressable>
                   </View>
-                  
-                  {Platform.OS === 'ios' && showDatePicker && (
-                    <View style={styles.pickerContainer}>
-                      <DateTimePicker
-                        value={customPickupTime}
-                        mode="date"
-                        display="spinner"
-                        onChange={handleDateChange}
-                        style={styles.picker}
-                      />
-                      <Pressable 
-                        style={styles.doneButton}
-                        onPress={() => setShowDatePicker(false)}
-                      >
-                        <Text style={styles.doneButtonText}>Done</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                  
-                  {Platform.OS === 'ios' && showTimePicker && (
-                    <View style={styles.pickerContainer}>
-                      <DateTimePicker
-                        value={customPickupTime}
-                        mode="time"
-                        display="spinner"
-                        onChange={handleTimeChange}
-                        style={styles.picker}
-                      />
-                      <Pressable 
-                        style={styles.doneButton}
-                        onPress={() => setShowTimePicker(false)}
-                      >
-                        <Text style={styles.doneButtonText}>Done</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                  
-                  {Platform.OS === 'android' && showDatePicker && (
-                    <DateTimePicker
-                      value={customPickupTime}
-                      mode="date"
-                      display="default"
-                      onChange={handleDateChange}
-                    />
-                  )}
-                  
-                  {Platform.OS === 'android' && showTimePicker && (
-                    <DateTimePicker
-                      value={customPickupTime}
-                      mode="time"
-                      display="default"
-                      onChange={handleTimeChange}
-                    />
-                  )}
+
+                  <DateTimePickerModal
+                    visible={showRideTimeModal}
+                    title="Pickup time"
+                    initialValue={{ date: customPickupTime, isASAP: useASAP }}
+                    allowASAP
+                    mode="ride"
+                    onCancel={() => {
+                      console.log('EventDetailScreen.rideTimeModal cancel');
+                      setShowRideTimeModal(false);
+                    }}
+                    onDone={handleRideTimeDone}
+                  />
                 </View>
               </View>
 
