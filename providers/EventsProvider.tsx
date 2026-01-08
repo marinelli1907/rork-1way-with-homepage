@@ -164,13 +164,39 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
     }
   };
 
+  const formatLocationError = (err: unknown): string => {
+    const anyErr = err as { message?: unknown; code?: unknown } | null;
+    const message = typeof anyErr?.message === 'string' ? anyErr.message : undefined;
+    const code =
+      typeof anyErr?.code === 'number' || typeof anyErr?.code === 'string' ? String(anyErr.code) : undefined;
+
+    if (message && code) return `${message} (code: ${code})`;
+    if (message) return message;
+
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  };
+
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_, reject) => {
+        setTimeout(() => reject(new Error(`Location request timed out after ${ms}ms`)), ms);
+      }),
+    ]);
+  };
+
   const requestLocation = useCallback(async () => {
     setLocationLoading(true);
     try {
+      console.log('[Location] requestLocation: requesting foreground permissions');
       const { status } = await Location.requestForegroundPermissionsAsync();
-      
+
       if (status !== 'granted') {
-        console.log('Location permission denied');
+        console.log('[Location] permission denied');
         const fallbackLocation: UserLocation = {
           lat: 41.4993,
           lng: -81.6944,
@@ -181,24 +207,44 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
         return fallbackLocation;
       }
 
-      const location = await Location.getCurrentPositionAsync({});
+      const lastKnown = await Location.getLastKnownPositionAsync({});
+      if (lastKnown?.coords?.latitude != null && lastKnown?.coords?.longitude != null) {
+        console.log('[Location] using last known position');
+        const newLocation: UserLocation = {
+          lat: lastKnown.coords.latitude,
+          lng: lastKnown.coords.longitude,
+          granted: true,
+        };
+        setUserLocation(newLocation);
+        await safeSetItem(STORAGE_KEY_LOCATION, newLocation);
+        return newLocation;
+      }
+
+      console.log('[Location] fetching current position');
+      const location = await withTimeout(
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        12000
+      );
       const newLocation: UserLocation = {
         lat: location.coords.latitude,
         lng: location.coords.longitude,
         granted: true,
       };
-      
+
       setUserLocation(newLocation);
       await safeSetItem(STORAGE_KEY_LOCATION, newLocation);
       return newLocation;
     } catch (error) {
-      console.error('Failed to get location:', error);
+      const pretty = formatLocationError(error);
+      console.error('[Location] Failed to get location:', pretty);
+
       const fallbackLocation: UserLocation = {
         lat: 41.4993,
         lng: -81.6944,
         granted: false,
       };
       setUserLocation(fallbackLocation);
+      await safeSetItem(STORAGE_KEY_LOCATION, fallbackLocation);
       return fallbackLocation;
     } finally {
       setLocationLoading(false);
