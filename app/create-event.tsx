@@ -59,9 +59,93 @@ function formatWhen(d: Date) {
   return `${date} at ${time}`;
 }
 
+function formatDateMMDDYYYY(d: Date) {
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const y = String(d.getFullYear());
+  return `${m}/${day}/${y}`;
+}
+
+function formatTime12h(d: Date) {
+  return d.toLocaleString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+
 function firstParam(v: string | string[] | undefined): string | undefined {
   if (Array.isArray(v)) return v[0];
   return v;
+}
+
+function normalizeWebDateInput(text: string) {
+  const digits = text.replace(/[^0-9]/g, '').slice(0, 8);
+  const mm = digits.slice(0, 2);
+  const dd = digits.slice(2, 4);
+  const yyyy = digits.slice(4, 8);
+
+  if (digits.length <= 2) return mm;
+  if (digits.length <= 4) return `${mm}/${dd}`;
+  return `${mm}/${dd}/${yyyy}`;
+}
+
+function parseWebDate(dateText: string): { y: number; m: number; d: number } | null {
+  const trimmed = dateText.trim();
+  const mdyMatch = /^\d{2}\/\d{2}\/\d{4}$/.test(trimmed);
+  if (!mdyMatch) return null;
+
+  const [mmS, ddS, yyyyS] = trimmed.split('/');
+  const mm = Number(mmS);
+  const dd = Number(ddS);
+  const yyyy = Number(yyyyS);
+
+  if (!Number.isFinite(mm) || !Number.isFinite(dd) || !Number.isFinite(yyyy)) return null;
+  if (yyyy < 1970 || yyyy > 2100) return null;
+  if (mm < 1 || mm > 12) return null;
+
+  const maxDay = new Date(yyyy, mm, 0).getDate();
+  if (dd < 1 || dd > maxDay) return null;
+
+  return { y: yyyy, m: mm, d: dd };
+}
+
+function parseWebTime(timeText: string): { hh: number; mm: number } | null {
+  const raw = timeText.trim().toUpperCase();
+
+  const ampmMatch = raw.match(/^\s*(\d{1,2})\s*:\s*(\d{2})\s*(AM|PM)\s*$/);
+  if (ampmMatch) {
+    const h = Number(ampmMatch[1]);
+    const m = Number(ampmMatch[2]);
+    const ap = ampmMatch[3];
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+    if (h < 1 || h > 12) return null;
+    if (m < 0 || m > 59) return null;
+
+    let hh = h % 12;
+    if (ap === 'PM') hh += 12;
+    return { hh, mm: m };
+  }
+
+  const h24Match = raw.match(/^\s*(\d{1,2})\s*:\s*(\d{2})\s*$/);
+  if (h24Match) {
+    const hh = Number(h24Match[1]);
+    const mm = Number(h24Match[2]);
+    if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+    if (hh < 0 || hh > 23) return null;
+    if (mm < 0 || mm > 59) return null;
+    return { hh, mm };
+  }
+
+  return null;
+}
+
+function parseWebDateTime(dateText: string, timeText: string): Date | null {
+  const d = parseWebDate(dateText);
+  const t = parseWebTime(timeText);
+  if (!d || !t) return null;
+  const result = new Date(d.y, d.m - 1, d.d, t.hh, t.mm, 0, 0);
+  return Number.isNaN(result.getTime()) ? null : result;
 }
 
 export default function CreateEventScreen() {
@@ -155,46 +239,49 @@ export default function CreateEventScreen() {
     if (Platform.OS === 'web') {
       const start = new Date(existingEvent.startISO);
       const end = new Date(existingEvent.endISO);
-      setWebStartDateText(toLocalDateInput(start));
-      setWebStartTimeText(toLocalTimeInput(start));
-      setWebEndDateText(toLocalDateInput(end));
-      setWebEndTimeText(toLocalTimeInput(end));
+      setWebStartDateText(toWebDateText(start));
+      setWebStartTimeText(toWebTimeText(start));
+      setWebEndDateText(toWebDateText(end));
+      setWebEndTimeText(toWebTimeText(end));
     }
   }, [existingEvent, mode]);
 
-  function toLocalDateInput(d: Date) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+  function toWebDateText(d: Date) {
+    return formatDateMMDDYYYY(d);
   }
 
-  function toLocalTimeInput(d: Date) {
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
+  function toWebTimeText(d: Date) {
+    return formatTime12h(d);
   }
 
-  function parseLocalDateTime(dateText: string, timeText: string): Date | null {
-    const dateMatch = /^\d{4}-\d{2}-\d{2}$/.test(dateText.trim());
-    const timeMatch = /^\d{2}:\d{2}$/.test(timeText.trim());
-    if (!dateMatch || !timeMatch) return null;
-
-    const [y, m, d] = dateText.split('-').map((n) => Number(n));
-    const [hh, mm] = timeText.split(':').map((n) => Number(n));
-    const result = new Date(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0, 0, 0);
-    return Number.isNaN(result.getTime()) ? null : result;
-  }
 
   type PickerTarget = 'start' | 'end';
+  type PickerStep = 'date' | 'time';
 
   const [pickerVisible, setPickerVisible] = useState<boolean>(false);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget>('start');
+  const [pickerStep, setPickerStep] = useState<PickerStep>('date');
+  const pendingDateRef = useRef<Date | null>(null);
 
-  const [webStartDateText, setWebStartDateText] = useState<string>(() => toLocalDateInput(startAt));
-  const [webStartTimeText, setWebStartTimeText] = useState<string>(() => toLocalTimeInput(startAt));
-  const [webEndDateText, setWebEndDateText] = useState<string>(() => toLocalDateInput(endAt));
-  const [webEndTimeText, setWebEndTimeText] = useState<string>(() => toLocalTimeInput(endAt));
+  const [webStartDateText, setWebStartDateText] = useState<string>(() => toWebDateText(startAt));
+  const [webStartTimeText, setWebStartTimeText] = useState<string>(() => toWebTimeText(startAt));
+  const [webEndDateText, setWebEndDateText] = useState<string>(() => toWebDateText(endAt));
+  const [webEndTimeText, setWebEndTimeText] = useState<string>(() => toWebTimeText(endAt));
+
+  const WEB_TIME_OPTIONS = useMemo(() => {
+    const out: string[] = [];
+    for (let h = 0; h < 24; h++) {
+      for (let m = 0; m < 60; m += 15) {
+        const d = new Date(2000, 0, 1, h, m, 0, 0);
+        out.push(formatTime12h(d));
+      }
+    }
+    return out;
+  }, []);
+
+  const [webTimePickerVisible, setWebTimePickerVisible] = useState<boolean>(false);
+  const [webTimePickerTarget, setWebTimePickerTarget] = useState<PickerTarget>('start');
+  const [webTimePickerDraft, setWebTimePickerDraft] = useState<string>('');
 
   const screenTitle = useMemo(() => {
     if (mode === 'edit') return 'Edit Event';
@@ -241,15 +328,15 @@ export default function CreateEventScreen() {
   const validateWebDates = useCallback(() => {
     if (Platform.OS !== 'web') return true;
 
-    const parsedStart = parseLocalDateTime(webStartDateText, webStartTimeText);
-    const parsedEnd = parseLocalDateTime(webEndDateText, webEndTimeText);
+    const parsedStart = parseWebDateTime(webStartDateText, webStartTimeText);
+    const parsedEnd = parseWebDateTime(webEndDateText, webEndTimeText);
 
     if (!parsedStart) {
-      Alert.alert('Invalid start time', 'Use format YYYY-MM-DD and HH:MM (24h). Example: 2026-01-05 and 19:30');
+      Alert.alert('Invalid start time', 'Use format MM/DD/YYYY and a valid time (e.g. 7:30 PM).');
       return false;
     }
     if (!parsedEnd) {
-      Alert.alert('Invalid end time', 'Use format YYYY-MM-DD and HH:MM (24h). Example: 2026-01-05 and 21:30');
+      Alert.alert('Invalid end time', 'Use format MM/DD/YYYY and a valid time (e.g. 9:00 PM).');
       return false;
     }
 
@@ -431,9 +518,13 @@ export default function CreateEventScreen() {
                 <TextInput
                   style={styles.input}
                   value={webStartDateText}
-                  onChangeText={setWebStartDateText}
-                  placeholder="YYYY-MM-DD"
+                  onChangeText={(t) => {
+                    const next = normalizeWebDateInput(t);
+                    setWebStartDateText(next);
+                  }}
+                  placeholder="MM/DD/YYYY"
                   placeholderTextColor="#94A3B8"
+                  keyboardType="number-pad"
                   autoCapitalize="none"
                   testID="createEventStartDateWeb"
                 />
@@ -441,15 +532,17 @@ export default function CreateEventScreen() {
               <View style={{ width: 12 }} />
               <View style={{ flex: 1, gap: 8 }}>
                 <Text style={styles.webWhenLabel}>Start time</Text>
-                <TextInput
-                  style={styles.input}
-                  value={webStartTimeText}
-                  onChangeText={setWebStartTimeText}
-                  placeholder="HH:MM"
-                  placeholderTextColor="#94A3B8"
-                  autoCapitalize="none"
+                <Pressable
+                  style={[styles.input, styles.webTimeButton]}
+                  onPress={() => {
+                    setWebTimePickerTarget('start');
+                    setWebTimePickerDraft(webStartTimeText);
+                    setWebTimePickerVisible(true);
+                  }}
                   testID="createEventStartTimeWeb"
-                />
+                >
+                  <Text style={styles.webTimeButtonText}>{webStartTimeText || 'Select time'}</Text>
+                </Pressable>
               </View>
             </View>
 
@@ -459,9 +552,13 @@ export default function CreateEventScreen() {
                 <TextInput
                   style={styles.input}
                   value={webEndDateText}
-                  onChangeText={setWebEndDateText}
-                  placeholder="YYYY-MM-DD"
+                  onChangeText={(t) => {
+                    const next = normalizeWebDateInput(t);
+                    setWebEndDateText(next);
+                  }}
+                  placeholder="MM/DD/YYYY"
                   placeholderTextColor="#94A3B8"
+                  keyboardType="number-pad"
                   autoCapitalize="none"
                   testID="createEventEndDateWeb"
                 />
@@ -469,15 +566,17 @@ export default function CreateEventScreen() {
               <View style={{ width: 12 }} />
               <View style={{ flex: 1, gap: 8 }}>
                 <Text style={styles.webWhenLabel}>End time</Text>
-                <TextInput
-                  style={styles.input}
-                  value={webEndTimeText}
-                  onChangeText={setWebEndTimeText}
-                  placeholder="HH:MM"
-                  placeholderTextColor="#94A3B8"
-                  autoCapitalize="none"
+                <Pressable
+                  style={[styles.input, styles.webTimeButton]}
+                  onPress={() => {
+                    setWebTimePickerTarget('end');
+                    setWebTimePickerDraft(webEndTimeText);
+                    setWebTimePickerVisible(true);
+                  }}
                   testID="createEventEndTimeWeb"
-                />
+                >
+                  <Text style={styles.webTimeButtonText}>{webEndTimeText || 'Select time'}</Text>
+                </Pressable>
               </View>
             </View>
           </View>
@@ -489,6 +588,8 @@ export default function CreateEventScreen() {
                 onPress={() => {
                   console.log('[create-event] open picker for start');
                   setPickerTarget('start');
+                  setPickerStep('date');
+                  pendingDateRef.current = null;
                   setPickerVisible(true);
                 }}
                 testID="createEventStartPicker"
@@ -502,6 +603,8 @@ export default function CreateEventScreen() {
                 onPress={() => {
                   console.log('[create-event] open picker for end');
                   setPickerTarget('end');
+                  setPickerStep('date');
+                  pendingDateRef.current = null;
                   setPickerVisible(true);
                 }}
                 testID="createEventEndPicker"
@@ -514,28 +617,63 @@ export default function CreateEventScreen() {
             {Platform.OS === 'android' && pickerVisible && (
               <DateTimePicker
                 value={pickerTarget === 'start' ? startAt : endAt}
-                mode="datetime"
+                mode={pickerStep}
                 display="default"
                 onChange={(event, selectedDate) => {
                   console.log('[create-event] android picker changed', {
                     pickerTarget,
+                    pickerStep,
                     type: event.type,
                     iso: selectedDate?.toISOString(),
                   });
 
-                  setPickerVisible(false);
-
                   if (event.type === 'dismissed' || !selectedDate) {
+                    setPickerVisible(false);
+                    pendingDateRef.current = null;
+                    setPickerStep('date');
                     return;
                   }
 
+                  const current = pickerTarget === 'start' ? startAt : endAt;
+
+                  if (pickerStep === 'date') {
+                    const next = new Date(
+                      selectedDate.getFullYear(),
+                      selectedDate.getMonth(),
+                      selectedDate.getDate(),
+                      current.getHours(),
+                      current.getMinutes(),
+                      0,
+                      0
+                    );
+
+                    pendingDateRef.current = next;
+                    setPickerStep('time');
+                    return;
+                  }
+
+                  const base = pendingDateRef.current ?? current;
+                  const next = new Date(
+                    base.getFullYear(),
+                    base.getMonth(),
+                    base.getDate(),
+                    selectedDate.getHours(),
+                    selectedDate.getMinutes(),
+                    0,
+                    0
+                  );
+
+                  setPickerVisible(false);
+                  pendingDateRef.current = null;
+                  setPickerStep('date');
+
                   if (pickerTarget === 'start') {
-                    setStartAt(selectedDate);
-                    if (selectedDate > endAt) {
-                      setEndAt(new Date(selectedDate.getTime() + 2 * 3600000));
+                    setStartAt(next);
+                    if (next > endAt) {
+                      setEndAt(new Date(next.getTime() + 2 * 3600000));
                     }
                   } else {
-                    setEndAt(selectedDate);
+                    setEndAt(next);
                   }
                 }}
               />
@@ -545,38 +683,93 @@ export default function CreateEventScreen() {
               <View style={styles.pickerContainer} testID="createEventWhenPickerContainer">
                 <View style={styles.pickerHeader}>
                   <Text style={styles.pickerTitle}>
-                    Select {pickerTarget === 'start' ? 'Start' : 'End'} Time
+                    {pickerTarget === 'start' ? 'Start' : 'End'}: pick date & time
                   </Text>
                 </View>
 
-                <DateTimePicker
-                  value={pickerTarget === 'start' ? startAt : endAt}
-                  mode="datetime"
-                  display="spinner"
-                  onChange={(_, selectedDate) => {
-                    if (!selectedDate) return;
+                <View style={styles.iosPickerRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.iosPickerLabel}>Date</Text>
+                    <DateTimePicker
+                      value={pickerTarget === 'start' ? startAt : endAt}
+                      mode="date"
+                      display="spinner"
+                      onChange={(_, selectedDate) => {
+                        if (!selectedDate) return;
 
-                    console.log('[create-event] ios picker changed', {
-                      pickerTarget,
-                      iso: selectedDate.toISOString(),
-                    });
+                        const current = pickerTarget === 'start' ? startAt : endAt;
+                        const next = new Date(
+                          selectedDate.getFullYear(),
+                          selectedDate.getMonth(),
+                          selectedDate.getDate(),
+                          current.getHours(),
+                          current.getMinutes(),
+                          0,
+                          0
+                        );
 
-                    if (pickerTarget === 'start') {
-                      setStartAt(selectedDate);
-                      if (selectedDate > endAt) {
-                        setEndAt(new Date(selectedDate.getTime() + 2 * 3600000));
-                      }
-                    } else {
-                      setEndAt(selectedDate);
-                    }
-                  }}
-                />
+                        console.log('[create-event] ios date changed', {
+                          pickerTarget,
+                          iso: next.toISOString(),
+                        });
+
+                        if (pickerTarget === 'start') {
+                          setStartAt(next);
+                          if (next > endAt) {
+                            setEndAt(new Date(next.getTime() + 2 * 3600000));
+                          }
+                        } else {
+                          setEndAt(next);
+                        }
+                      }}
+                    />
+                  </View>
+
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.iosPickerLabel}>Time</Text>
+                    <DateTimePicker
+                      value={pickerTarget === 'start' ? startAt : endAt}
+                      mode="time"
+                      display="spinner"
+                      onChange={(_, selectedDate) => {
+                        if (!selectedDate) return;
+
+                        const current = pickerTarget === 'start' ? startAt : endAt;
+                        const next = new Date(
+                          current.getFullYear(),
+                          current.getMonth(),
+                          current.getDate(),
+                          selectedDate.getHours(),
+                          selectedDate.getMinutes(),
+                          0,
+                          0
+                        );
+
+                        console.log('[create-event] ios time changed', {
+                          pickerTarget,
+                          iso: next.toISOString(),
+                        });
+
+                        if (pickerTarget === 'start') {
+                          setStartAt(next);
+                          if (next > endAt) {
+                            setEndAt(new Date(next.getTime() + 2 * 3600000));
+                          }
+                        } else {
+                          setEndAt(next);
+                        }
+                      }}
+                    />
+                  </View>
+                </View>
 
                 <View style={styles.pickerFooter}>
                   <Pressable
                     style={styles.closePickerButton}
                     onPress={() => {
                       setPickerVisible(false);
+                      pendingDateRef.current = null;
+                      setPickerStep('date');
                     }}
                     testID="createEventPickerDone"
                   >
@@ -586,6 +779,98 @@ export default function CreateEventScreen() {
               </View>
             )}
           </>
+        )}
+
+        {Platform.OS === 'web' && (
+          <View style={styles.webTimePickerHost} pointerEvents={webTimePickerVisible ? 'auto' : 'none'}>
+            {webTimePickerVisible && (
+              <View style={styles.webTimePickerOverlay}>
+                <View style={styles.webTimePickerCard} testID="createEventWebTimePicker">
+                  <Text style={styles.webTimePickerTitle}>
+                    Select {webTimePickerTarget === 'start' ? 'Start' : 'End'} time
+                  </Text>
+
+                  <View style={styles.webTimeQuickRow}>
+                    {['6:00 PM', '7:00 PM', '7:30 PM', '8:00 PM', '9:00 PM', '10:00 PM'].map((t) => {
+                      const isSelected = (webTimePickerDraft || '') === t;
+                      return (
+                        <Pressable
+                          key={t}
+                          style={[styles.webTimeQuickChip, isSelected && styles.webTimeQuickChipActive]}
+                          onPress={() => setWebTimePickerDraft(t)}
+                          testID={`createEventWebTimeQuick_${t.replace(/[^0-9APM]/g, '')}`}
+                        >
+                          <Text style={[styles.webTimeQuickText, isSelected && styles.webTimeQuickTextActive]}>{t}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+
+                  <View style={styles.webTimeSearchRow}>
+                    <TextInput
+                      style={[styles.input, styles.webTimeSearchInput]}
+                      value={webTimePickerDraft}
+                      onChangeText={setWebTimePickerDraft}
+                      placeholder="e.g. 7:30 PM"
+                      placeholderTextColor="#94A3B8"
+                      autoCapitalize="characters"
+                      testID="createEventWebTimeSearch"
+                    />
+                  </View>
+
+                  <View style={styles.webTimeList}>
+                    <View style={styles.webTimeListInner}>
+                      {WEB_TIME_OPTIONS.map((t) => {
+                        const isSelected = webTimePickerDraft === t;
+                        return (
+                          <Pressable
+                            key={t}
+                            style={[styles.webTimeRow, isSelected && styles.webTimeRowActive]}
+                            onPress={() => setWebTimePickerDraft(t)}
+                          >
+                            <Text style={[styles.webTimeRowText, isSelected && styles.webTimeRowTextActive]}>{t}</Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  <View style={styles.webTimePickerFooter}>
+                    <Pressable
+                      style={[styles.webTimeFooterBtn, styles.webTimeFooterBtnGhost]}
+                      onPress={() => {
+                        setWebTimePickerVisible(false);
+                        setWebTimePickerDraft('');
+                      }}
+                      testID="createEventWebTimeCancel"
+                    >
+                      <Text style={styles.webTimeFooterBtnGhostText}>Cancel</Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={[styles.webTimeFooterBtn, styles.webTimeFooterBtnPrimary]}
+                      onPress={() => {
+                        const parsed = parseWebTime(webTimePickerDraft);
+                        if (!parsed) {
+                          Alert.alert('Invalid time', 'Try something like 7:30 PM.');
+                          return;
+                        }
+
+                        if (webTimePickerTarget === 'start') setWebStartTimeText(webTimePickerDraft);
+                        else setWebEndTimeText(webTimePickerDraft);
+
+                        setWebTimePickerVisible(false);
+                        setWebTimePickerDraft('');
+                      }}
+                      testID="createEventWebTimeApply"
+                    >
+                      <Text style={styles.webTimeFooterBtnPrimaryText}>Apply</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
         )}
       </View>
 
@@ -690,6 +975,141 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: 12,
     padding: 16,
+  },
+  webTimeButton: {
+    justifyContent: 'center',
+  },
+  webTimeButtonText: {
+    fontSize: 16,
+    color: '#0F172A',
+  },
+  webTimePickerHost: {
+    position: 'relative',
+    zIndex: 50,
+  },
+  webTimePickerOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 8,
+    paddingTop: 6,
+  },
+  webTimePickerCard: {
+    backgroundColor: '#0B1220',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+  },
+  webTimePickerTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: '#E2E8F0',
+    marginBottom: 10,
+  },
+  webTimeQuickRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  webTimeQuickChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  webTimeQuickChipActive: {
+    backgroundColor: '#22C55E',
+    borderColor: '#22C55E',
+  },
+  webTimeQuickText: {
+    color: '#E2E8F0',
+    fontSize: 13,
+    fontWeight: '700' as const,
+  },
+  webTimeQuickTextActive: {
+    color: '#04120A',
+  },
+  webTimeSearchRow: {
+    marginBottom: 10,
+  },
+  webTimeSearchInput: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    color: '#E2E8F0',
+  },
+  webTimeList: {
+    maxHeight: 260,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    overflow: 'hidden',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  webTimeListInner: {
+    paddingVertical: 6,
+  },
+  webTimeRow: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  webTimeRowActive: {
+    backgroundColor: 'rgba(34, 197, 94, 0.16)',
+  },
+  webTimeRowText: {
+    color: '#E2E8F0',
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  webTimeRowTextActive: {
+    color: '#86EFAC',
+  },
+  webTimePickerFooter: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  webTimeFooterBtn: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  webTimeFooterBtnGhost: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
+  },
+  webTimeFooterBtnGhostText: {
+    color: '#E2E8F0',
+    fontSize: 14,
+    fontWeight: '800' as const,
+  },
+  webTimeFooterBtnPrimary: {
+    backgroundColor: '#22C55E',
+  },
+  webTimeFooterBtnPrimaryText: {
+    color: '#04120A',
+    fontSize: 14,
+    fontWeight: '900' as const,
+  },
+  iosPickerRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  iosPickerLabel: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#64748B',
+    marginBottom: 6,
   },
   timeLabel: {
     fontSize: 12,
