@@ -2,6 +2,39 @@ import * as Calendar from 'expo-calendar';
 import { Platform } from 'react-native';
 import { Event } from '@/types';
 
+function buildCalendarNotes(event: Event): string {
+  const baseNotes = (event.notes ?? '').trim();
+
+  const activeRides = (event.rides ?? []).filter((r) => r.status !== 'cancelled');
+  const ridesSection = activeRides.length
+    ? [
+        '—',
+        'Rides booked:',
+        ...activeRides.map((r) => {
+          const driver = r.driver?.name ? ` • Driver: ${r.driver.name}` : '';
+          const when = (() => {
+            const d = new Date(r.pickupTime);
+            if (Number.isNaN(d.getTime())) return r.pickupTime;
+            return d.toLocaleString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true,
+            });
+          })();
+
+          return `• ${r.rideType === 'arrival' ? 'Arrival' : 'Return'} @ ${when}${driver}`;
+        }),
+      ].join('\n')
+    : '';
+
+  const meta = `Category: ${event.category}${event.tags.length > 0 ? `\nTags: ${event.tags.join(', ')}` : ''}`;
+
+  return [baseNotes, meta, ridesSection].filter((s) => (s ?? '').trim().length > 0).join('\n\n');
+}
+
 export async function requestCalendarPermissions(): Promise<boolean> {
   if (Platform.OS === 'web') {
     console.log('Calendar sync not available on web');
@@ -64,7 +97,7 @@ export async function syncEventToCalendar(event: Event): Promise<string | null> 
       startDate: new Date(event.startISO),
       endDate: new Date(event.endISO),
       location: `${event.venue}, ${event.address}`,
-      notes: event.notes || `Category: ${event.category}${event.tags.length > 0 ? `\nTags: ${event.tags.join(', ')}` : ''}`,
+      notes: buildCalendarNotes(event),
       timeZone: 'America/New_York',
     });
 
@@ -102,7 +135,7 @@ export async function updateCalendarEvent(calendarEventId: string, event: Event)
       startDate: new Date(event.startISO),
       endDate: new Date(event.endISO),
       location: `${event.venue}, ${event.address}`,
-      notes: event.notes || `Category: ${event.category}${event.tags.length > 0 ? `\nTags: ${event.tags.join(', ')}` : ''}`,
+      notes: buildCalendarNotes(event),
       timeZone: 'America/New_York',
     });
 

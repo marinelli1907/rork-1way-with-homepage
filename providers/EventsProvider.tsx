@@ -349,14 +349,25 @@ export const [EventsProvider, useEvents] = createContextHook(() => {
       status: 'confirmed',
     };
 
-    const updatedEvent = {
+    const updatedEvent: Event = {
       ...event,
       rides: [...(event.rides || []), newRide],
     };
 
-    const updatedEvents = events.map(e =>
-      e.id === eventId ? updatedEvent : e
-    );
+    if (updatedEvent.calendarEventId) {
+      try {
+        console.log('[Events] bookRide: updating calendar event with ride booked', {
+          eventId,
+          calendarEventId: updatedEvent.calendarEventId,
+          rideId: newRide.id,
+        });
+        await updateCalendarEvent(updatedEvent.calendarEventId, updatedEvent);
+      } catch (e) {
+        console.error('[Events] bookRide: failed to update calendar event', e);
+      }
+    }
+
+    const updatedEvents = events.map(e => (e.id === eventId ? updatedEvent : e));
     await saveEvents(updatedEvents);
     return newRide;
   }, [events]);
