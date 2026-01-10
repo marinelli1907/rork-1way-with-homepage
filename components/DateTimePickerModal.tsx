@@ -289,7 +289,7 @@ export default function DateTimePickerModal({
       transparent={false}
     >
       <View style={[styles.root, { backgroundColor: theme.background }]}>
-        <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        <SafeAreaView style={styles.safe} edges={["bottom"]}>
           <View style={styles.header}>
             <Pressable
               onPress={() => {
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 60,
     paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
