@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Calendar, Plus, Edit, Copy, Trash2, CheckSquare, Square, Download, List, History } from 'lucide-react-native';
+import { Calendar, Plus, Edit, Copy, Trash2, Download, List, History } from 'lucide-react-native';
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -28,14 +28,12 @@ export default function MyEventsScreen() {
     upcomingEvents,
     eventsLoading,
     deleteEvent,
-    deleteEvents,
     importFromIOSCalendar,
     updateEvent,
     duplicateEvent,
   } = useEvents();
 
-  const [isSelectionMode, setIsSelectionMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   const [isImporting, setIsImporting] = useState(false);
   const [swipedId, setSwipedId] = useState<string | null>(null);
   const [swipeAnimations] = useState<Record<string, Animated.Value>>({});
@@ -112,41 +110,7 @@ export default function MyEventsScreen() {
     ]);
   };
 
-  const toggleSelectionMode = () => {
-    setIsSelectionMode(!isSelectionMode);
-    setSelectedIds(new Set());
-  };
 
-  const toggleEventSelection = (id: string) => {
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedIds(newSelected);
-  };
-
-  const handleBulkDelete = () => {
-    if (selectedIds.size === 0) return;
-    
-    Alert.alert(
-      'Delete Events',
-      `Are you sure you want to delete ${selectedIds.size} event${selectedIds.size === 1 ? '' : 's'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            deleteEvents(Array.from(selectedIds));
-            setSelectedIds(new Set());
-            setIsSelectionMode(false);
-          },
-        },
-      ]
-    );
-  };
 
   const handleImportFromCalendar = async () => {
     setIsImporting(true);
@@ -212,41 +176,6 @@ export default function MyEventsScreen() {
     const { month, day, time } = formatEventDate(event.startISO);
     const color = event.color || getCategoryColor(event.category);
     const swipeAnim = getSwipeAnimation(event.id);
-    const isSelected = selectedIds.has(event.id);
-
-    if (isSelectionMode) {
-      return (
-        <Pressable
-          key={event.id}
-          style={[styles.eventCard, isSelected && styles.eventCardSelected]}
-          onPress={() => toggleEventSelection(event.id)}
-        >
-          <Pressable
-            style={styles.checkbox}
-            onPress={() => toggleEventSelection(event.id)}
-          >
-            {isSelected ? (
-              <CheckSquare size={24} color="#1E3A8A" strokeWidth={2} />
-            ) : (
-              <Square size={24} color="#94A3B8" strokeWidth={2} />
-            )}
-          </Pressable>
-
-          <View style={[styles.dateBox, { backgroundColor: color }]}>
-            <Text style={styles.dateMonth}>{month.toUpperCase()}</Text>
-            <Text style={styles.dateDay}>{day}</Text>
-          </View>
-
-          <View style={styles.eventInfo}>
-            <Text style={styles.eventTitle}>{event.title}</Text>
-            <Text style={styles.eventVenue}>{event.venue}</Text>
-            <Text style={styles.eventTime}>{time}</Text>
-          </View>
-
-          <View style={[styles.categoryDot, { backgroundColor: color }]} />
-        </Pressable>
-      );
-    }
 
     return (
       <View key={event.id} style={styles.eventCardContainer}>
@@ -384,17 +313,6 @@ export default function MyEventsScreen() {
               {viewMode === 'list' ? 'Calendar' : 'List'}
             </Text>
           </Pressable>
-          {viewMode === 'list' && (
-            <Pressable
-              style={styles.toolbarButton}
-              onPress={toggleSelectionMode}
-            >
-              <CheckSquare size={22} color="#1E3A8A" strokeWidth={2} />
-              <Text style={styles.toolbarButtonText}>
-                {isSelectionMode ? 'Cancel' : 'Select'}
-              </Text>
-            </Pressable>
-          )}
           <Pressable
             style={styles.toolbarButton}
             onPress={() => router.push('/past')}
@@ -405,24 +323,6 @@ export default function MyEventsScreen() {
         </View>
       </View>
 
-      {isSelectionMode && (
-        <View style={styles.selectionBar}>
-          <View style={styles.selectionInfo}>
-            <Text style={styles.selectionCount}>
-              {selectedIds.size} selected
-            </Text>
-          </View>
-          {selectedIds.size > 0 && (
-            <Pressable
-              style={styles.bulkDeleteButton}
-              onPress={handleBulkDelete}
-            >
-              <Trash2 size={18} color="#FFFFFF" strokeWidth={2} />
-              <Text style={styles.bulkDeleteText}>Delete</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
 
       {upcomingEvents.length === 0 ? (
         <View style={styles.importContainer}>
