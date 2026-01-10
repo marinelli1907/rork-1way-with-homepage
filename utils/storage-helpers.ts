@@ -20,7 +20,15 @@ export async function safeGetItem<T>(key: string): Promise<T | null> {
     
     const trimmed = item.trim();
     
-    if (trimmed === '' || trimmed === 'undefined' || trimmed === 'null' || trimmed === 'NaN') {
+    if (
+      trimmed === '' || 
+      trimmed === 'undefined' || 
+      trimmed === 'null' || 
+      trimmed === 'NaN' ||
+      trimmed === '[object Object]' ||
+      trimmed.startsWith('object') ||
+      trimmed === 'true' && typeof item !== 'string'
+    ) {
       console.warn(`[Storage] Empty/invalid data for key ${key}: "${trimmed}"`);
       try {
         await AsyncStorage.removeItem(key);
@@ -39,6 +47,16 @@ export async function safeGetItem<T>(key: string): Promise<T | null> {
       (firstChar >= '0' && firstChar <= '9') ||
       trimmed === 'true' || 
       trimmed === 'false';
+    
+    if (trimmed.includes('[object') || trimmed.includes('Object]')) {
+      console.error(`[Storage] Detected serialized object string for key ${key}, clearing`);
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch {
+        console.error(`[Storage] Failed to remove serialized object for key ${key}`);
+      }
+      return null;
+    }
     
     if (!isValidJsonStart) {
       console.error(`[Storage] Invalid JSON format for key ${key}. First char: "${firstChar}", Preview: "${trimmed.substring(0, 50)}"`);
