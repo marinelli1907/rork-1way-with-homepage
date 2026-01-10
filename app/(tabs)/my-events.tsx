@@ -307,8 +307,13 @@ export default function MyEventsScreen() {
             onPress={() => setViewMode('calendar')}
             testID="myEventsViewCalendar"
           >
-            <Calendar size={20} color={viewMode === 'calendar' ? '#FFFFFF' : '#1E3A8A'} strokeWidth={2} />
-            <Text style={[styles.toolbarButtonText, viewMode === 'calendar' && styles.toolbarButtonTextActive]}>Calendar</Text>
+            <Calendar size={18} color={viewMode === 'calendar' ? '#FFFFFF' : '#1E3A8A'} strokeWidth={2} />
+            <Text
+              style={[styles.toolbarButtonText, viewMode === 'calendar' && styles.toolbarButtonTextActive]}
+              numberOfLines={1}
+            >
+              Calendar
+            </Text>
           </Pressable>
 
           <Pressable
@@ -316,8 +321,13 @@ export default function MyEventsScreen() {
             onPress={() => setViewMode('list')}
             testID="myEventsViewList"
           >
-            <List size={20} color={viewMode === 'list' ? '#FFFFFF' : '#1E3A8A'} strokeWidth={2} />
-            <Text style={[styles.toolbarButtonText, viewMode === 'list' && styles.toolbarButtonTextActive]}>List</Text>
+            <List size={18} color={viewMode === 'list' ? '#FFFFFF' : '#1E3A8A'} strokeWidth={2} />
+            <Text
+              style={[styles.toolbarButtonText, viewMode === 'list' && styles.toolbarButtonTextActive]}
+              numberOfLines={1}
+            >
+              List
+            </Text>
           </Pressable>
 
           <Pressable
@@ -325,8 +335,13 @@ export default function MyEventsScreen() {
             onPress={() => setViewMode('hourly')}
             testID="myEventsViewHourly"
           >
-            <Clock size={20} color={viewMode === 'hourly' ? '#FFFFFF' : '#1E3A8A'} strokeWidth={2} />
-            <Text style={[styles.toolbarButtonText, viewMode === 'hourly' && styles.toolbarButtonTextActive]}>Hourly</Text>
+            <Clock size={18} color={viewMode === 'hourly' ? '#FFFFFF' : '#1E3A8A'} strokeWidth={2} />
+            <Text
+              style={[styles.toolbarButtonText, viewMode === 'hourly' && styles.toolbarButtonTextActive]}
+              numberOfLines={1}
+            >
+              Hourly
+            </Text>
           </Pressable>
 
           <Pressable
@@ -334,8 +349,10 @@ export default function MyEventsScreen() {
             onPress={() => router.push('/past')}
             testID="myEventsViewPast"
           >
-            <History size={20} color="#1E3A8A" strokeWidth={2} />
-            <Text style={styles.toolbarButtonText}>Past</Text>
+            <History size={18} color="#1E3A8A" strokeWidth={2} />
+            <Text style={styles.toolbarButtonText} numberOfLines={1}>
+              Past
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -498,20 +515,23 @@ const styles = StyleSheet.create({
   },
   toolbarButtons: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   toolbarButton: {
-    flexDirection: 'row',
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'column',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderRadius: 16,
     backgroundColor: '#F1F5F9',
   },
   toolbarButtonText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
+    fontSize: 12,
+    fontWeight: '800' as const,
     color: '#1E3A8A',
   },
   toolbarButtonActive: {

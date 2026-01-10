@@ -403,6 +403,16 @@ export default function HourlyAgenda({
     return `${dragMode === 'copy' ? 'Copy' : 'Move'} • ${time}`;
   }, [dayStart, dragMinutes, dragMode, draggingEvent]);
 
+  const dragPreview = useMemo(() => {
+    if (!draggingEvent) return null;
+    const originalStart = new Date(draggingEvent.startISO);
+    const originalEnd = new Date(draggingEvent.endISO);
+    const durationMin = Math.max(15, Math.round((originalEnd.getTime() - originalStart.getTime()) / 60000));
+    const height = (durationMin / 60) * HOUR_ROW_HEIGHT;
+    const color = draggingEvent.color || getCategoryColor(draggingEvent.category);
+    return { height, color, durationMin };
+  }, [draggingEvent]);
+
   return (
     <View style={styles.container}>
       <View style={styles.dayHeader}>
@@ -448,7 +458,7 @@ export default function HourlyAgenda({
               {dayEvents.map(renderEventBlock)}
             </View>
 
-            {draggingEvent && dragMinutes != null ? (
+            {draggingEvent && dragMinutes != null && dragPreview ? (
               <Animated.View
                 style={[
                   styles.ghostWrap,
@@ -458,8 +468,22 @@ export default function HourlyAgenda({
                   },
                 ]}
                 pointerEvents="none"
+                testID="hourlyAgendaDragPreview"
               >
-                <View style={styles.ghostPill}>
+                <View
+                  style={[
+                    styles.dropPreviewCard,
+                    {
+                      height: dragPreview.height,
+                      borderColor: `${dragPreview.color}AA`,
+                      backgroundColor: `${dragPreview.color}14`,
+                    },
+                  ]}
+                >
+                  <View style={[styles.dropPreviewTopLine, { backgroundColor: dragPreview.color }]} />
+                </View>
+
+                <View style={[styles.ghostPill, { borderColor: `${dragPreview.color}66` }]}>
                   <Text style={styles.ghostPillText} numberOfLines={1}>
                     {ghostLabel}
                   </Text>
@@ -755,7 +779,15 @@ const styles = StyleSheet.create({
     left: 74,
     right: 12,
     top: 0,
-    height: 0,
+  },
+  dropPreviewCard: {
+    borderRadius: 16,
+    borderWidth: 2,
+    overflow: 'hidden',
+  },
+  dropPreviewTopLine: {
+    height: 3,
+    borderRadius: 999,
   },
   ghostPill: {
     alignSelf: 'flex-end',
@@ -763,7 +795,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    marginTop: 8,
+    marginTop: 10,
+    borderWidth: 1,
   },
   ghostPillText: {
     fontSize: 12,
