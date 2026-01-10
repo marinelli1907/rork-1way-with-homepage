@@ -232,22 +232,22 @@ export default function DateTimePickerModal({
       return {
         accent: '#1E3A8A',
         asap: '#F59E0B',
-        background: '#0B1220',
-        card: '#111B2E',
-        text: '#E5E7EB',
-        subtext: '#94A3B8',
-        border: 'rgba(255,255,255,0.10)',
+        background: '#1E3A8A',
+        card: '#2548A0',
+        text: '#FFFFFF',
+        subtext: '#CBD5E1',
+        border: 'rgba(255,255,255,0.15)',
       };
     }
 
     return {
       accent: '#E31937',
       asap: '#F59E0B',
-      background: '#0B0F17',
-      card: '#121826',
-      text: '#E5E7EB',
-      subtext: '#94A3B8',
-      border: 'rgba(255,255,255,0.10)',
+      background: '#1E3A8A',
+      card: '#2548A0',
+      text: '#FFFFFF',
+      subtext: '#CBD5E1',
+      border: 'rgba(255,255,255,0.15)',
     };
   }, [mode]);
 
