@@ -22,8 +22,7 @@ interface AddressComponents {
 
 const MOCK_USER = {
   name: 'Jordan Smith',
-  email: 'jordan.smith@example.com',
-  phone: '+1 (555) 123-4567',
+  phone: '(555) 123-4567',
   avatar: 'https://i.pravatar.cc/300?img=12',
 };
 
@@ -65,8 +64,7 @@ export default function EditProfileScreen() {
   const initialAddress = parseAddress(myProfile?.address);
 
   const [name, setName] = useState(myProfile?.name || MOCK_USER.name);
-  const [email, setEmail] = useState(myProfile?.email || MOCK_USER.email);
-  const [phone, setPhone] = useState(myProfile?.phone || MOCK_USER.phone);
+  const phone = myProfile?.phone || MOCK_USER.phone;
   const [address, setAddress] = useState<AddressComponents>(initialAddress);
   const [isHandicap, setIsHandicap] = useState<boolean>(myProfile?.isHandicap ?? false);
   const [isSaving, setIsSaving] = useState(false);
@@ -79,8 +77,6 @@ export default function EditProfileScreen() {
 
   const isDirty =
     name !== (myProfile?.name || MOCK_USER.name) ||
-    email !== (myProfile?.email || MOCK_USER.email) ||
-    phone !== (myProfile?.phone || MOCK_USER.phone) ||
     addressChanged ||
     isHandicap !== (myProfile?.isHandicap ?? false);
 
@@ -89,7 +85,6 @@ export default function EditProfileScreen() {
     try {
       await updateMyProfile({
         name,
-        email,
         phone,
         address: formatAddress(address),
         isHandicap,
@@ -139,28 +134,16 @@ export default function EditProfileScreen() {
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>Phone Number</Text>
           <TextInput
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter your email"
-            placeholderTextColor="#94A3B8"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Phone</Text>
-          <TextInput
-            style={styles.input}
+            style={[styles.input, styles.inputDisabled]}
             value={phone}
-            onChangeText={setPhone}
-            placeholder="Enter your phone"
+            editable={false}
+            placeholder="Phone number"
             placeholderTextColor="#94A3B8"
             keyboardType="phone-pad"
           />
+          <Text style={styles.inputHint}>Phone number cannot be changed</Text>
         </View>
 
         <View style={styles.inputGroup}>
@@ -316,5 +299,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-
+  inputDisabled: {
+    backgroundColor: '#F1F5F9',
+    color: '#64748B',
+  },
+  inputHint: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 4,
+    marginLeft: 4,
+  },
 });

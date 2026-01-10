@@ -27,13 +27,32 @@ export default function LoginScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   
-  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
 
+  const formatPhoneNumber = (text: string) => {
+    const cleaned = text.replace(/\D/g, '');
+    const limited = cleaned.slice(0, 10);
+    
+    if (limited.length <= 3) {
+      return limited;
+    } else if (limited.length <= 6) {
+      return `(${limited.slice(0, 3)}) ${limited.slice(3)}`;
+    } else {
+      return `(${limited.slice(0, 3)}) ${limited.slice(3, 6)}-${limited.slice(6)}`;
+    }
+  };
+
+  const handlePhoneChange = (text: string) => {
+    setPhone(formatPhoneNumber(text));
+  };
+
   const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all required fields');
+    const cleanedPhone = phone.replace(/\D/g, '');
+    
+    if (!cleanedPhone || cleanedPhone.length < 10 || !password) {
+      Alert.alert('Error', 'Please enter a valid phone number and password');
       return;
     }
 
@@ -47,9 +66,9 @@ export default function LoginScreen() {
     try {
       let result;
       if (isSignUp) {
-        result = await signUp(name, email, password, 'customer', undefined);
+        result = await signUp(name, phone, password, 'customer', undefined);
       } else {
-        result = await signIn(email, password, 'customer');
+        result = await signIn(phone, password, 'customer');
       }
 
       if (result.success) {
@@ -117,14 +136,14 @@ export default function LoginScreen() {
               )}
 
               <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Email Address</Text>
+                <Text style={styles.inputLabel}>Phone Number</Text>
                 <TextInput
                   style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="you@example.com"
+                  value={phone}
+                  onChangeText={handlePhoneChange}
+                  placeholder="(555) 123-4567"
                   placeholderTextColor="#94A3B8"
-                  keyboardType="email-address"
+                  keyboardType="phone-pad"
                   autoCapitalize="none"
                   autoCorrect={false}
                 />

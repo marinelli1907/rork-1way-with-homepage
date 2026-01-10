@@ -9,8 +9,8 @@ export type UserRole = 'customer' | 'driver';
 export interface AuthUser {
   id: string;
   name: string;
-  email: string;
-  phone?: string;
+  phone: string;
+  email?: string;
   role: UserRole;
   profileImage?: string;
   createdAt: string;
@@ -90,14 +90,15 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     }
   }, [authState]);
 
-  const signIn = useCallback(async (email: string, password: string, role: UserRole) => {
+  const signIn = useCallback(async (phone: string, password: string, role: UserRole) => {
     try {
-      console.log('Signing in:', email, role);
+      console.log('Signing in with phone:', phone, role);
       
+      const cleanedPhone = phone.replace(/\D/g, '');
       const user: AuthUser = {
         id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        name: email.split('@')[0],
-        email,
+        name: `User ${cleanedPhone.slice(-4)}`,
+        phone,
         role,
         createdAt: new Date().toISOString(),
       };
@@ -135,18 +136,18 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
 
   const signUp = useCallback(async (
     name: string,
-    email: string,
+    phone: string,
     password: string,
     role: UserRole,
     driverData?: Partial<DriverInfo>
   ) => {
     try {
-      console.log('Signing up:', name, email, role);
+      console.log('Signing up with phone:', name, phone, role);
       
       const user: AuthUser = {
         id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         name,
-        email,
+        phone,
         role,
         createdAt: new Date().toISOString(),
       };
