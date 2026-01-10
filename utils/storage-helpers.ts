@@ -4,27 +4,49 @@ export async function safeGetItem<T>(key: string): Promise<T | null> {
   try {
     const item = await AsyncStorage.getItem(key);
     
-    if (!item) {
+    if (item === null || item === undefined) {
       return null;
     }
     
     if (typeof item !== 'string') {
       console.warn(`[Storage] Invalid data type for key ${key}, expected string but got ${typeof item}`);
-      await AsyncStorage.removeItem(key);
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch {
+        console.error(`[Storage] Failed to remove invalid item for key ${key}`);
+      }
       return null;
     }
     
     const trimmed = item.trim();
     
-    if (trimmed === '' || trimmed === 'undefined' || trimmed === 'null') {
-      console.warn(`[Storage] Empty/invalid data for key ${key}`);
-      await AsyncStorage.removeItem(key);
+    if (trimmed === '' || trimmed === 'undefined' || trimmed === 'null' || trimmed === 'NaN') {
+      console.warn(`[Storage] Empty/invalid data for key ${key}: "${trimmed}"`);
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch {
+        console.error(`[Storage] Failed to remove empty item for key ${key}`);
+      }
       return null;
     }
     
-    if (!trimmed.startsWith('{') && !trimmed.startsWith('[') && !trimmed.startsWith('"') && !trimmed.match(/^[0-9]/) && trimmed !== 'true' && trimmed !== 'false') {
-      console.error(`[Storage] Invalid JSON format for key ${key}: "${trimmed.substring(0, 50)}..."`);
-      await AsyncStorage.removeItem(key);
+    const firstChar = trimmed.charAt(0);
+    const isValidJsonStart = 
+      firstChar === '{' || 
+      firstChar === '[' || 
+      firstChar === '"' || 
+      firstChar === '-' ||
+      (firstChar >= '0' && firstChar <= '9') ||
+      trimmed === 'true' || 
+      trimmed === 'false';
+    
+    if (!isValidJsonStart) {
+      console.error(`[Storage] Invalid JSON format for key ${key}. First char: "${firstChar}", Preview: "${trimmed.substring(0, 50)}"`);
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch {
+        console.error(`[Storage] Failed to remove invalid JSON for key ${key}`);
+      }
       return null;
     }
     
@@ -32,10 +54,14 @@ export async function safeGetItem<T>(key: string): Promise<T | null> {
       const parsed = JSON.parse(trimmed);
       return parsed as T;
     } catch (parseError) {
-      console.error(`[Storage] JSON parse failed for key ${key}:`, parseError);
+      console.error(`[Storage] JSON parse failed for key ${key}`);
       console.error(`[Storage] Data preview (first 200 chars):`, trimmed.substring(0, 200));
-      console.error(`[Storage] Error message:`, parseError instanceof Error ? parseError.message : String(parseError));
-      await AsyncStorage.removeItem(key);
+      console.error(`[Storage] Error:`, parseError instanceof Error ? parseError.message : String(parseError));
+      try {
+        await AsyncStorage.removeItem(key);
+      } catch {
+        console.error(`[Storage] Failed to remove corrupt data for key ${key}`);
+      }
       return null;
     }
   } catch (error) {
