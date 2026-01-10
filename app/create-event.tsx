@@ -117,6 +117,8 @@ export default function CreateEventScreen() {
   );
   const [startAt, setStartAt] = useState<Date>(initialStart);
   const [endAt, setEndAt] = useState<Date>(initialEnd);
+  const [isAllDay, setIsAllDay] = useState<boolean>(false);
+  const lastManualEndRef = useRef<Date>(initialEnd);
   const [notes, setNotes] = useState<string>(existingEvent?.notes ?? '');
 
   const [dateTimePickerVisible, setDateTimePickerVisible] = useState<boolean>(false);
@@ -144,8 +146,25 @@ export default function CreateEventScreen() {
 
     const start = new Date(existingEvent.startISO);
     const end = new Date(existingEvent.endISO);
-    if (!Number.isNaN(start.getTime())) setStartAt(start);
-    if (!Number.isNaN(end.getTime())) setEndAt(end);
+
+    const startValid = !Number.isNaN(start.getTime());
+    const endValid = !Number.isNaN(end.getTime());
+
+    if (startValid) setStartAt(start);
+    if (endValid) setEndAt(end);
+
+    if (startValid && endValid) {
+      lastManualEndRef.current = end;
+      const isSameDay =
+        start.getFullYear() === end.getFullYear() &&
+        start.getMonth() === end.getMonth() &&
+        start.getDate() === end.getDate();
+      const looksAllDay = isSameDay && end.getHours() === 23 && end.getMinutes() === 59;
+      if (looksAllDay) {
+        console.log('[create-event] detected all-day from existing event');
+        setIsAllDay(true);
+      }
+    }
 
     setNotes(existingEvent.notes ?? '');
   }, [existingEvent, mode]);
@@ -192,11 +211,22 @@ export default function CreateEventScreen() {
     router.back();
   }, [router]);
 
+  const endOfDay = useCallback((d: Date): Date => {
+    const out = new Date(d);
+    out.setHours(23, 59, 0, 0);
+    return out;
+  }, []);
+
   const openDateTimePicker = useCallback((target: 'start' | 'end') => {
+    if (target === 'end' && isAllDay) {
+      console.log('[create-event] openDateTimePicker ignored (all-day)');
+      return;
+    }
+
     console.log('[create-event] openDateTimePicker', { target });
     setDateTimePickerTarget(target);
     setDateTimePickerVisible(true);
-  }, []);
+  }, [isAllDay]);
 
   const closeDateTimePicker = useCallback(() => {
     setDateTimePickerVisible(false);
@@ -212,7 +242,15 @@ export default function CreateEventScreen() {
       const next = value.date;
 
       if (dateTimePickerTarget === 'start') {
+        console.log('[create-event] start selected', { iso: next.toISOString(), isAllDay });
         setStartAt(next);
+
+        if (isAllDay) {
+          setEndAt(endOfDay(next));
+          closeDateTimePicker();
+          return;
+        }
+
         setEndAt(adjustEndTimeIfNeeded(next, endAt));
         closeDateTimePicker();
         return;
@@ -224,14 +262,17 @@ export default function CreateEventScreen() {
           return;
         }
 
+        console.log('[create-event] end selected', { iso: next.toISOString() });
+        lastManualEndRef.current = next;
         setEndAt(next);
+        setIsAllDay(false);
         closeDateTimePicker();
         return;
       }
 
       closeDateTimePicker();
     },
-    [closeDateTimePicker, dateTimePickerTarget, endAt, startAt]
+    [closeDateTimePicker, dateTimePickerTarget, endAt, endOfDay, isAllDay, startAt]
   );
 
   const submit = useCallback(async () => {
@@ -396,10 +437,39 @@ export default function CreateEventScreen() {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>When</Text>
+        <View style={styles.whenHeaderRow}>
+          <Text style={styles.label}>When</Text>
+          <Pressable
+            onPress={() => {
+              const next = !isAllDay;
+              console.log('[create-event] toggle all-day', { next });
+
+              if (next) {
+                lastManualEndRef.current = endAt;
+                setIsAllDay(true);
+                setEndAt(endOfDay(startAt));
+                return;
+              }
+
+              setIsAllDay(false);
+              const restored = lastManualEndRef.current;
+              const fixed = adjustEndTimeIfNeeded(startAt, restored);
+              setEndAt(fixed);
+            }}
+            style={[styles.allDayPill, isAllDay && styles.allDayPillActive]}
+            testID="createEventAllDayToggle"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={[styles.allDayPillText, isAllDay && styles.allDayPillTextActive]}>All day</Text>
+          </Pressable>
+        </View>
+
         <View style={styles.timeCardsRow}>
           <Pressable
-            style={[styles.timeCardCompact, dateTimePickerVisible && dateTimePickerTarget === 'start' && styles.timeCardActive]}
+            style={[
+              styles.timeCardCompact,
+              dateTimePickerVisible && dateTimePickerTarget === 'start' && styles.timeCardActive,
+            ]}
             onPress={() => openDateTimePicker('start')}
             testID="createEventStartPicker"
           >
@@ -413,16 +483,23 @@ export default function CreateEventScreen() {
           </Pressable>
 
           <Pressable
-            style={[styles.timeCardCompact, dateTimePickerVisible && dateTimePickerTarget === 'end' && styles.timeCardActive]}
+            style={[
+              styles.timeCardCompact,
+              dateTimePickerVisible && dateTimePickerTarget === 'end' && styles.timeCardActive,
+              isAllDay && styles.timeCardDisabled,
+            ]}
             onPress={() => openDateTimePicker('end')}
             testID="createEventEndPicker"
+            disabled={isAllDay}
           >
             <Text style={styles.timeCardLabel}>End</Text>
             <Text style={styles.timeCardDate}>
               {endAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </Text>
             <Text style={styles.timeCardTime}>
-              {endAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+              {isAllDay
+                ? '11:59 PM'
+                : endAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
             </Text>
           </Pressable>
         </View>
@@ -495,6 +572,33 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#64748B',
   },
+  whenHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 8,
+  },
+  allDayPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#FFFFFF',
+  },
+  allDayPillActive: {
+    backgroundColor: '#0F172A',
+    borderColor: '#0F172A',
+  },
+  allDayPillText: {
+    fontSize: 13,
+    fontWeight: '800' as const,
+    color: '#334155',
+  },
+  allDayPillTextActive: {
+    color: '#FFFFFF',
+  },
   timeCardsRow: {
     flexDirection: 'row',
     gap: 12,
@@ -511,6 +615,9 @@ const styles = StyleSheet.create({
   timeCardActive: {
     borderColor: '#3B82F6',
     backgroundColor: '#EFF6FF',
+  },
+  timeCardDisabled: {
+    opacity: 0.55,
   },
   timeCardLabel: {
     fontSize: 11,
