@@ -11,6 +11,14 @@ import { useRouter } from 'expo-router';
 import BottomSheetModal from '@/components/BottomSheetModal';
 import { useProfiles } from '@/providers/ProfilesProvider';
 import { Accessibility } from 'lucide-react-native';
+import SmartAddressInput from '@/components/SmartAddressInput';
+
+interface AddressComponents {
+  street: string;
+  city: string;
+  state: string;
+  zip: string;
+}
 
 const MOCK_USER = {
   name: 'Jordan Smith',
@@ -19,20 +27,61 @@ const MOCK_USER = {
   avatar: 'https://i.pravatar.cc/300?img=12',
 };
 
+const DEFAULT_ADDRESS: AddressComponents = {
+  street: '',
+  city: '',
+  state: '',
+  zip: '',
+};
+
+const parseAddress = (address: string | AddressComponents | undefined): AddressComponents => {
+  if (!address) return DEFAULT_ADDRESS;
+  if (typeof address === 'string') {
+    const parts = address.split(',').map(p => p.trim());
+    if (parts.length >= 3) {
+      const stateZip = parts[2]?.split(' ') || [];
+      return {
+        street: parts[0] || '',
+        city: parts[1] || '',
+        state: stateZip[0] || '',
+        zip: stateZip[1] || '',
+      };
+    }
+    return { street: address, city: '', state: '', zip: '' };
+  }
+  return address;
+};
+
+const formatAddress = (addr: AddressComponents): string => {
+  if (!addr.street && !addr.city && !addr.state && !addr.zip) return '';
+  const parts = [addr.street, addr.city, `${addr.state} ${addr.zip}`.trim()].filter(Boolean);
+  return parts.join(', ');
+};
+
 export default function EditProfileScreen() {
   const router = useRouter();
   const { myProfile, updateMyProfile } = useProfiles();
 
+  const initialAddress = parseAddress(myProfile?.address);
+
   const [name, setName] = useState(myProfile?.name || MOCK_USER.name);
   const [email, setEmail] = useState(myProfile?.email || MOCK_USER.email);
   const [phone, setPhone] = useState(myProfile?.phone || MOCK_USER.phone);
+  const [address, setAddress] = useState<AddressComponents>(initialAddress);
   const [isHandicap, setIsHandicap] = useState<boolean>(myProfile?.isHandicap ?? false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const addressChanged = 
+    address.street !== initialAddress.street ||
+    address.city !== initialAddress.city ||
+    address.state !== initialAddress.state ||
+    address.zip !== initialAddress.zip;
 
   const isDirty =
     name !== (myProfile?.name || MOCK_USER.name) ||
     email !== (myProfile?.email || MOCK_USER.email) ||
     phone !== (myProfile?.phone || MOCK_USER.phone) ||
+    addressChanged ||
     isHandicap !== (myProfile?.isHandicap ?? false);
 
   const handleSave = async () => {
@@ -42,6 +91,7 @@ export default function EditProfileScreen() {
         name,
         email,
         phone,
+        address: formatAddress(address),
         isHandicap,
       });
 
@@ -110,6 +160,17 @@ export default function EditProfileScreen() {
             placeholder="Enter your phone"
             placeholderTextColor="#94A3B8"
             keyboardType="phone-pad"
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Address</Text>
+          <SmartAddressInput
+            value={address}
+            onAddressChange={setAddress}
+            placeholder="Enter your address"
+            hideDetails
+            testIDPrefix="editProfileAddress"
           />
         </View>
       </View>
