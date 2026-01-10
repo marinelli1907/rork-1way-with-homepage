@@ -38,7 +38,7 @@ import {
   Image,
 } from 'react-native';
 import { useEvents } from '@/providers/EventsProvider';
-import DateTimePickerModal, { DateTimePickerResult } from '@/components/DateTimePickerModal';
+import UnifiedDateTimePicker, { UnifiedDateTimePickerResult } from '@/components/UnifiedDateTimePicker';
 import { useProfiles } from '@/providers/ProfilesProvider';
 import { calculateRideQuote } from '@/utils/pricing';
 import { RideBooking } from '@/types';
@@ -284,14 +284,14 @@ export default function EventDetailScreen() {
     setShowRideTimeModal(false);
   };
 
-  const handleRideTimeDone = (res: DateTimePickerResult) => {
+  const handleRideTimeDone = (res: UnifiedDateTimePickerResult) => {
     console.log('EventDetailScreen.handleRideTimeDone', {
       isASAP: res.isASAP,
       iso: res.date.toISOString(),
     });
 
     setShowRideTimeModal(false);
-    setUseASAP(res.isASAP);
+    setUseASAP(res.isASAP ?? false);
     setCustomPickupTime(res.date);
   };
 
@@ -1084,12 +1084,12 @@ export default function EventDetailScreen() {
         </View>
       </Modal>
 
-      <DateTimePickerModal
+      <UnifiedDateTimePicker
         visible={showRideTimeModal}
-        title="Pickup time"
-        initialValue={{ date: customPickupTime, isASAP: useASAP }}
+        title="Pickup Time"
+        initialDate={customPickupTime}
+        initialIsASAP={useASAP}
         allowASAP
-        mode="ride"
         onCancel={() => {
           console.log('EventDetailScreen.rideTimeModal cancel');
           setShowRideTimeModal(false);

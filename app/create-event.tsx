@@ -3,7 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import BottomSheetModal from '@/components/BottomSheetModal';
-import DateTimePickerModal, { DateTimePickerResult, roundUpToInterval } from '@/components/DateTimePickerModal';
+import UnifiedDateTimePicker, { UnifiedDateTimePickerResult, roundToNext30Minutes, adjustEndTimeIfNeeded } from '@/components/UnifiedDateTimePicker';
 import { useEvents } from '@/providers/EventsProvider';
 import { EventCategory, EventFormMode } from '@/types';
 
@@ -90,7 +90,7 @@ export default function CreateEventScreen() {
     }
 
     const now = new Date();
-    const rounded = roundUpToInterval(now, 30);
+    const rounded = roundToNext30Minutes(now);
 
     if (rounded.getTime() <= now.getTime()) {
       const bumped = new Date(rounded);
@@ -203,23 +203,17 @@ export default function CreateEventScreen() {
     setDateTimePickerTarget(null);
   }, []);
 
-  const dateTimePickerInitial = useMemo((): DateTimePickerResult => {
-    const d = dateTimePickerTarget === 'end' ? endAt : startAt;
-    return { date: d, isASAP: false };
+  const dateTimePickerInitialDate = useMemo((): Date => {
+    return dateTimePickerTarget === 'end' ? endAt : startAt;
   }, [dateTimePickerTarget, endAt, startAt]);
 
   const handleDateTimePickerDone = useCallback(
-    (value: DateTimePickerResult) => {
+    (value: UnifiedDateTimePickerResult) => {
       const next = value.date;
 
       if (dateTimePickerTarget === 'start') {
         setStartAt(next);
-
-        if (endAt.getTime() <= next.getTime()) {
-          const autoEnd = new Date(next.getTime() + 2 * 60 * 60 * 1000);
-          setEndAt(autoEnd);
-        }
-
+        setEndAt(adjustEndTimeIfNeeded(next, endAt));
         closeDateTimePicker();
         return;
       }
@@ -447,12 +441,11 @@ export default function CreateEventScreen() {
           testID="createEventNotes"
         />
       </View>
-      <DateTimePickerModal
+      <UnifiedDateTimePicker
         visible={dateTimePickerVisible}
-        title={dateTimePickerTarget === 'end' ? 'End time' : 'Start time'}
-        initialValue={dateTimePickerInitial}
+        title={dateTimePickerTarget === 'end' ? 'End Time' : 'Start Time'}
+        initialDate={dateTimePickerInitialDate}
         allowASAP={false}
-        mode="event"
         onCancel={closeDateTimePicker}
         onDone={handleDateTimePickerDone}
       />

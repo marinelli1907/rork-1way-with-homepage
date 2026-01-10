@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { ChevronLeft, MapPin, Phone, Clock, Star, Users, Globe, Car, Calendar as CalendarIcon, Plus, Minus, Info } from 'lucide-react-native';
 import React, { useState, useMemo, useCallback } from 'react';
-import DateTimePickerModal, { DateTimePickerResult, roundUpToInterval } from '@/components/DateTimePickerModal';
+import UnifiedDateTimePicker, { UnifiedDateTimePickerResult, roundToNext30Minutes, adjustEndTimeIfNeeded } from '@/components/UnifiedDateTimePicker';
 import {
   View,
   Text,
@@ -27,7 +27,7 @@ export default function RestaurantDetailsScreen() {
   
   const initialStart = useMemo(() => {
     const now = new Date();
-    const rounded = roundUpToInterval(now, 30);
+    const rounded = roundToNext30Minutes(now);
     if (rounded.getTime() <= now.getTime()) {
       const bumped = new Date(rounded);
       bumped.setMinutes(bumped.getMinutes() + 30);
@@ -55,21 +55,17 @@ export default function RestaurantDetailsScreen() {
     setDateTimePickerTarget(null);
   }, []);
 
-  const dateTimePickerInitial = useMemo((): DateTimePickerResult => {
-    const d = dateTimePickerTarget === 'end' ? endAt : startAt;
-    return { date: d, isASAP: false };
+  const dateTimePickerInitialDate = useMemo((): Date => {
+    return dateTimePickerTarget === 'end' ? endAt : startAt;
   }, [dateTimePickerTarget, endAt, startAt]);
 
   const handleDateTimePickerDone = useCallback(
-    (value: DateTimePickerResult) => {
+    (value: UnifiedDateTimePickerResult) => {
       const next = value.date;
 
       if (dateTimePickerTarget === 'start') {
         setStartAt(next);
-        if (endAt.getTime() <= next.getTime()) {
-          const autoEnd = new Date(next.getTime() + 2 * 60 * 60 * 1000);
-          setEndAt(autoEnd);
-        }
+        setEndAt(adjustEndTimeIfNeeded(next, endAt));
         closeDateTimePicker();
         return;
       }
@@ -335,12 +331,11 @@ export default function RestaurantDetailsScreen() {
         </View>
       </ScrollView>
 
-      <DateTimePickerModal
+      <UnifiedDateTimePicker
         visible={dateTimePickerVisible}
-        title={dateTimePickerTarget === 'end' ? 'End time' : 'Start time'}
-        initialValue={dateTimePickerInitial}
+        title={dateTimePickerTarget === 'end' ? 'End Time' : 'Start Time'}
+        initialDate={dateTimePickerInitialDate}
         allowASAP={false}
-        mode="event"
         onCancel={closeDateTimePicker}
         onDone={handleDateTimePickerDone}
       />

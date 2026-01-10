@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, MapPin, Clock } from 'lucide-react-native';
-import DateTimePickerModal, { DateTimePickerResult } from '@/components/DateTimePickerModal';
+import UnifiedDateTimePicker, { UnifiedDateTimePickerResult } from '@/components/UnifiedDateTimePicker';
 
 type SavedEvent = {
   id: string;
@@ -182,14 +182,13 @@ export default function SmartCalendarDemo() {
             </View>
           </View>
 
-          <DateTimePickerModal
+          <UnifiedDateTimePicker
             visible={showDateTimePicker}
             title={dateTimePickerMode === 'date' ? 'Select Date' : 'Select Time'}
-            initialValue={{ date: dateTimePickerMode === 'date' ? startDate : startTime, isASAP: false }}
+            initialDate={dateTimePickerMode === 'date' ? startDate : startTime}
             allowASAP={false}
-            mode="event"
             onCancel={() => setShowDateTimePicker(false)}
-            onDone={(result: DateTimePickerResult) => {
+            onDone={(result: UnifiedDateTimePickerResult) => {
               if (dateTimePickerMode === 'date') {
                 setStartDate(result.date);
               } else {
