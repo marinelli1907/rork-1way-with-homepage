@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { ChevronLeft, MapPin, Phone, Clock, Star, Users, Globe, Car, Calendar as CalendarIcon, Plus, Minus, Info } from 'lucide-react-native';
 import React, { useState, useMemo, useCallback } from 'react';
+import DateTimePickerModal, { DateTimePickerResult, roundUpToInterval } from '@/components/DateTimePickerModal';
 import {
   View,
   Text,
@@ -21,53 +22,78 @@ export default function RestaurantDetailsScreen() {
   const restaurant = CLEVELAND_RESTAURANTS.find(r => r.id === id);
   const { addEvent } = useEvents();
   
-  const [selectedDate, setSelectedDate] = useState(0);
   const [partySize, setPartySize] = useState(2);
   const [specialRequests, setSpecialRequests] = useState('');
-  const [customTime, setCustomTime] = useState('');
-
-  const dates = useMemo(() => {
-    const result: Date[] = [];
-    for (let i = 0; i < 7; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      result.push(date);
+  
+  const initialStart = useMemo(() => {
+    const now = new Date();
+    const rounded = roundUpToInterval(now, 30);
+    if (rounded.getTime() <= now.getTime()) {
+      const bumped = new Date(rounded);
+      bumped.setMinutes(bumped.getMinutes() + 30);
+      return bumped;
     }
-    return result;
+    return rounded;
   }, []);
 
-  const reservationDateTime = useMemo(() => {
-    if (!customTime.trim()) return null;
-    const selectedDateObj = dates[selectedDate];
-    
-    const timeParts = customTime.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/i);
-    if (!timeParts) return null;
-    
-    let hour = parseInt(timeParts[1] || '0', 10);
-    const minute = parseInt(timeParts[2] || '0', 10);
-    const period = timeParts[3]?.toUpperCase();
-    
-    if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
-    
-    if (period) {
-      if (period === 'PM' && hour !== 12) hour += 12;
-      if (period === 'AM' && hour === 12) hour = 0;
-    }
+  const initialEnd = useMemo(() => {
+    return new Date(initialStart.getTime() + 2 * 60 * 60 * 1000);
+  }, [initialStart]);
 
-    const dt = new Date(selectedDateObj);
-    dt.setHours(hour, minute, 0, 0);
-    return dt;
-  }, [dates, selectedDate, customTime]);
+  const [startAt, setStartAt] = useState<Date>(initialStart);
+  const [endAt, setEndAt] = useState<Date>(initialEnd);
+  const [dateTimePickerVisible, setDateTimePickerVisible] = useState(false);
+  const [dateTimePickerTarget, setDateTimePickerTarget] = useState<'start' | 'end' | null>(null);
+
+  const openDateTimePicker = useCallback((target: 'start' | 'end') => {
+    setDateTimePickerTarget(target);
+    setDateTimePickerVisible(true);
+  }, []);
+
+  const closeDateTimePicker = useCallback(() => {
+    setDateTimePickerVisible(false);
+    setDateTimePickerTarget(null);
+  }, []);
+
+  const dateTimePickerInitial = useMemo((): DateTimePickerResult => {
+    const d = dateTimePickerTarget === 'end' ? endAt : startAt;
+    return { date: d, isASAP: false };
+  }, [dateTimePickerTarget, endAt, startAt]);
+
+  const handleDateTimePickerDone = useCallback(
+    (value: DateTimePickerResult) => {
+      const next = value.date;
+
+      if (dateTimePickerTarget === 'start') {
+        setStartAt(next);
+        if (endAt.getTime() <= next.getTime()) {
+          const autoEnd = new Date(next.getTime() + 2 * 60 * 60 * 1000);
+          setEndAt(autoEnd);
+        }
+        closeDateTimePicker();
+        return;
+      }
+
+      if (dateTimePickerTarget === 'end') {
+        if (next.getTime() <= startAt.getTime()) {
+          Alert.alert('Invalid time', 'End time must be after the start time.');
+          return;
+        }
+        setEndAt(next);
+        closeDateTimePicker();
+        return;
+      }
+
+      closeDateTimePicker();
+    },
+    [closeDateTimePicker, dateTimePickerTarget, endAt, startAt]
+  );
 
   const handleAddToCalendar = useCallback(async () => {
     if (!restaurant) return;
-    if (!reservationDateTime) {
-      Alert.alert('Pick a time', 'Select a time first, then you can add this to your calendar.');
-      return;
-    }
 
     try {
-      const startISO = reservationDateTime.toISOString();
+      const startISO = startAt.toISOString();
 
       const newEvent = await addEvent({
         userId: 'user_1',
@@ -75,7 +101,7 @@ export default function RestaurantDetailsScreen() {
         title: `${restaurant.name}`,
         category: 'food',
         startISO,
-        endISO: new Date(reservationDateTime.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+        endISO: endAt.toISOString(),
         venue: restaurant.name,
         address: restaurant.address,
         color: '#10B981',
@@ -109,7 +135,7 @@ export default function RestaurantDetailsScreen() {
       console.error('[restaurant] handleAddToCalendar failed', e);
       Alert.alert('Error', 'Failed to add to calendar. Please try again.');
     }
-  }, [addEvent, reservationDateTime, restaurant, router, specialRequests]);
+  }, [addEvent, startAt, endAt, restaurant, router, specialRequests]);
 
   const handleBookRideNow = useCallback(() => {
     if (!restaurant) return;
@@ -237,48 +263,36 @@ export default function RestaurantDetailsScreen() {
             </View>
 
             <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Select Date</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.datesScroll}
-              >
-                {dates.map((date, idx) => (
-                  <Pressable
-                    key={idx}
-                    style={[
-                      styles.dateChip,
-                      selectedDate === idx && styles.dateChipActive,
-                    ]}
-                    onPress={() => setSelectedDate(idx)}
-                  >
-                    <Text style={[
-                      styles.dateDay,
-                      selectedDate === idx && styles.dateDayActive,
-                    ]}>
-                      {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                    </Text>
-                    <Text style={[
-                      styles.dateNumber,
-                      selectedDate === idx && styles.dateNumberActive,
-                    ]}>
-                      {date.getDate()}
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
+              <Text style={styles.formLabel}>When</Text>
+              <View style={styles.timeCardsRow}>
+                <Pressable
+                  style={[styles.timeCardCompact, dateTimePickerVisible && dateTimePickerTarget === 'start' && styles.timeCardActive]}
+                  onPress={() => openDateTimePicker('start')}
+                  testID="restaurantStartPicker"
+                >
+                  <Text style={styles.timeCardLabel}>Start</Text>
+                  <Text style={styles.timeCardDate}>
+                    {startAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </Text>
+                  <Text style={styles.timeCardTime}>
+                    {startAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  </Text>
+                </Pressable>
 
-            <View style={styles.formSection}>
-              <Text style={styles.formLabel}>Enter Time</Text>
-              <TextInput
-                style={styles.timeInput}
-                placeholder="e.g., 7:30 PM or 19:30"
-                placeholderTextColor="#94A3B8"
-                value={customTime}
-                onChangeText={setCustomTime}
-                testID="restaurantTimeInput"
-              />
+                <Pressable
+                  style={[styles.timeCardCompact, dateTimePickerVisible && dateTimePickerTarget === 'end' && styles.timeCardActive]}
+                  onPress={() => openDateTimePicker('end')}
+                  testID="restaurantEndPicker"
+                >
+                  <Text style={styles.timeCardLabel}>End</Text>
+                  <Text style={styles.timeCardDate}>
+                    {endAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </Text>
+                  <Text style={styles.timeCardTime}>
+                    {endAt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                  </Text>
+                </Pressable>
+              </View>
               <View style={styles.infoBox}>
                 <Info size={16} color="#3B82F6" />
                 <Text style={styles.infoText2}>This does not create an actual reservation at the restaurant. It only adds to your calendar.</Text>
@@ -301,7 +315,7 @@ export default function RestaurantDetailsScreen() {
                 testID="restaurantAddToCalendar"
               >
                 <CalendarIcon size={18} color="#0F172A" strokeWidth={2} />
-                <Text style={styles.ctaSecondaryText}>Pick time & add to calendar</Text>
+                <Text style={styles.ctaSecondaryText}>Add to calendar</Text>
               </Pressable>
             </View>
 
@@ -320,6 +334,16 @@ export default function RestaurantDetailsScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <DateTimePickerModal
+        visible={dateTimePickerVisible}
+        title={dateTimePickerTarget === 'end' ? 'End time' : 'Start time'}
+        initialValue={dateTimePickerInitial}
+        allowASAP={false}
+        mode="event"
+        onCancel={closeDateTimePicker}
+        onDone={handleDateTimePickerDone}
+      />
     </View>
   );
 }
@@ -486,52 +510,42 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: '#64748B',
   },
-  datesScroll: {
-    gap: 8,
-    paddingBottom: 8,
+  timeCardsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
   },
-  dateChip: {
-    width: 70,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 12,
+  timeCardCompact: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
     borderWidth: 2,
     borderColor: '#E2E8F0',
+    borderRadius: 14,
+    padding: 14,
     alignItems: 'center',
   },
-  dateChipActive: {
-    backgroundColor: '#1E3A8A',
-    borderColor: '#1E3A8A',
+  timeCardActive: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
   },
-  dateDay: {
-    fontSize: 12,
-    fontWeight: '600' as const,
+  timeCardLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
     color: '#64748B',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
     marginBottom: 4,
   },
-  dateDayActive: {
-    color: '#FFFFFF',
-  },
-  dateNumber: {
-    fontSize: 18,
+  timeCardDate: {
+    fontSize: 16,
     fontWeight: '700' as const,
     color: '#1E293B',
   },
-  dateNumberActive: {
-    color: '#FFFFFF',
-  },
-  timeInput: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+  timeCardTime: {
+    fontSize: 13,
     fontWeight: '600' as const,
-    color: '#1E293B',
-    marginBottom: 12,
+    color: '#64748B',
+    marginTop: 2,
   },
   infoBox: {
     flexDirection: 'row',
