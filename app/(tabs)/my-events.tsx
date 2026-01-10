@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { Calendar, Plus, Edit, Copy, Trash2, CheckSquare, Square, Download, List, History } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Alert,
   Animated,
   Dimensions,
+  Modal,
 } from 'react-native';
 
 import { useEvents } from '@/providers/EventsProvider';
@@ -39,6 +40,8 @@ export default function MyEventsScreen() {
   const [swipedId, setSwipedId] = useState<string | null>(null);
   const [swipeAnimations] = useState<Record<string, Animated.Value>>({});
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [eventActionsVisible, setEventActionsVisible] = useState(false);
 
   const getSwipeAnimation = (id: string) => {
     if (!swipeAnimations[id]) {
@@ -50,6 +53,50 @@ export default function MyEventsScreen() {
   const handleSwipeStart = (id: string) => {
     setSwipedId(id);
   };
+
+  const closeEventActions = useCallback(() => {
+    setEventActionsVisible(false);
+    setSelectedEvent(null);
+  }, []);
+
+  const openEventActions = useCallback((event: Event) => {
+    setSelectedEvent(event);
+    setEventActionsVisible(true);
+  }, []);
+
+  const handleOpenSelectedEvent = useCallback(() => {
+    if (!selectedEvent) return;
+    closeEventActions();
+    router.push(`/event/${selectedEvent.id}`);
+  }, [closeEventActions, router, selectedEvent]);
+
+  const handleEditSelectedEvent = useCallback(() => {
+    if (!selectedEvent) return;
+    closeEventActions();
+    router.push(`/create-event?mode=edit&eventId=${selectedEvent.id}`);
+  }, [closeEventActions, router, selectedEvent]);
+
+  const handleDuplicateSelectedEvent = useCallback(async () => {
+    if (!selectedEvent) return;
+    try {
+      await duplicateEvent(selectedEvent.id);
+      closeEventActions();
+      Alert.alert('Success', 'Event duplicated');
+    } catch {
+      Alert.alert('Error', 'Failed to duplicate event.');
+    }
+  }, [closeEventActions, duplicateEvent, selectedEvent]);
+
+  const handleDeleteSelectedEvent = useCallback(async () => {
+    if (!selectedEvent) return;
+    try {
+      await deleteEvent(selectedEvent.id);
+      closeEventActions();
+      Alert.alert('Deleted', 'Event has been deleted');
+    } catch {
+      Alert.alert('Error', 'Failed to delete event.');
+    }
+  }, [closeEventActions, deleteEvent, selectedEvent]);
 
   const handleSwipeDelete = (id: string, title: string) => {
     Alert.alert('Delete Event', `Are you sure you want to delete "${title}"?`, [
@@ -287,7 +334,7 @@ export default function MyEventsScreen() {
               styles.eventCard,
               pressed && styles.eventCardPressed,
             ]}
-            onPress={() => router.push(`/event/${event.id}`)}
+            onPress={() => openEventActions(event)}
           >
             <View style={[styles.dateBox, { backgroundColor: color }]}>
               <Text style={styles.dateMonth}>{month.toUpperCase()}</Text>
@@ -415,6 +462,69 @@ export default function MyEventsScreen() {
           {upcomingEvents.map(renderEvent)}
         </ScrollView>
       )}
+
+      <Modal
+        visible={eventActionsVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeEventActions}
+      >
+        <Pressable style={styles.eventActionsOverlay} onPress={closeEventActions}>
+          <Pressable style={styles.eventActionsCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.eventActionsTitle} numberOfLines={2}>
+              {selectedEvent?.title ?? ''}
+            </Text>
+            <Text style={styles.eventActionsMeta} numberOfLines={1}>
+              {selectedEvent
+                ? new Date(selectedEvent.startISO).toLocaleString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  })
+                : ''}
+            </Text>
+            {!!selectedEvent?.venue && (
+              <Text style={styles.eventActionsMeta} numberOfLines={1}>
+                {selectedEvent.venue}
+              </Text>
+            )}
+
+            <View style={styles.eventActionsButtonsRow}>
+              <Pressable style={styles.eventActionsPrimaryButton} onPress={handleOpenSelectedEvent}>
+                <Text style={styles.eventActionsPrimaryText}>Open</Text>
+              </Pressable>
+              <Pressable style={styles.eventActionsSecondaryButton} onPress={handleEditSelectedEvent}>
+                <Text style={styles.eventActionsSecondaryText}>Edit</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.eventActionsButtonsRow}>
+              <Pressable style={styles.eventActionsSecondaryButton} onPress={handleDuplicateSelectedEvent}>
+                <Text style={styles.eventActionsSecondaryText}>Duplicate</Text>
+              </Pressable>
+              <Pressable
+                style={styles.eventActionsDestructiveButton}
+                onPress={() => {
+                  if (!selectedEvent) return;
+                  Alert.alert('Delete Event', `Are you sure you want to delete "${selectedEvent.title}"?`, [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Delete', style: 'destructive', onPress: handleDeleteSelectedEvent },
+                  ]);
+                }}
+              >
+                <Text style={styles.eventActionsDestructiveText}>Delete</Text>
+              </Pressable>
+            </View>
+
+            <Pressable style={styles.eventActionsCancelButton} onPress={closeEventActions}>
+              <Text style={styles.eventActionsCancelText}>Close</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <View style={styles.fab}>
         <Pressable
@@ -677,5 +787,85 @@ const styles = StyleSheet.create({
   fabButtonPressed: {
     opacity: 0.8,
     transform: [{ scale: 0.95 }],
+  },
+  eventActionsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.55)',
+    paddingHorizontal: 18,
+    justifyContent: 'center',
+  },
+  eventActionsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
+  },
+  eventActionsTitle: {
+    fontSize: 18,
+    fontWeight: '800' as const,
+    color: '#0F172A',
+    marginBottom: 6,
+  },
+  eventActionsMeta: {
+    fontSize: 13,
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  eventActionsButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  eventActionsPrimaryButton: {
+    flex: 1,
+    backgroundColor: '#1E3A8A',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  eventActionsPrimaryText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800' as const,
+  },
+  eventActionsSecondaryButton: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  eventActionsSecondaryText: {
+    color: '#0F172A',
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  eventActionsDestructiveButton: {
+    flex: 1,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  eventActionsDestructiveText: {
+    color: '#B91C1C',
+    fontSize: 15,
+    fontWeight: '800' as const,
+  },
+  eventActionsCancelButton: {
+    marginTop: 14,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  eventActionsCancelText: {
+    color: '#64748B',
+    fontSize: 14,
+    fontWeight: '700' as const,
   },
 });
