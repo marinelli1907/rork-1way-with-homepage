@@ -6,11 +6,10 @@ import {
   TextInput,
   Pressable,
   ScrollView,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar, MapPin, Clock } from 'lucide-react-native';
+import DateTimePickerModal, { DateTimePickerResult } from '@/components/DateTimePickerModal';
 
 type SavedEvent = {
   id: string;
@@ -25,8 +24,8 @@ export default function SmartCalendarDemo() {
   const [selectedVenue, setSelectedVenue] = useState('');
   const [startDate, setStartDate] = useState(new Date());
   const [startTime, setStartTime] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showDateTimePicker, setShowDateTimePicker] = useState(false);
+  const [dateTimePickerMode, setDateTimePickerMode] = useState<'date' | 'time'>('date');
   const [savedEvents, setSavedEvents] = useState<SavedEvent[]>([]);
 
   const detectVenues = (text: string): string[] => {
@@ -158,7 +157,10 @@ export default function SmartCalendarDemo() {
               <Text style={styles.label}>Start Date</Text>
               <Pressable
                 style={styles.dateTimeButton}
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => {
+                  setDateTimePickerMode('date');
+                  setShowDateTimePicker(true);
+                }}
               >
                 <Calendar size={18} color="#64748B" strokeWidth={2} />
                 <Text style={styles.dateTimeText}>{formatDate(startDate)}</Text>
@@ -169,7 +171,10 @@ export default function SmartCalendarDemo() {
               <Text style={styles.label}>Start Time</Text>
               <Pressable
                 style={styles.dateTimeButton}
-                onPress={() => setShowTimePicker(true)}
+                onPress={() => {
+                  setDateTimePickerMode('time');
+                  setShowDateTimePicker(true);
+                }}
               >
                 <Clock size={18} color="#64748B" strokeWidth={2} />
                 <Text style={styles.dateTimeText}>{formatTime(startTime)}</Text>
@@ -177,33 +182,22 @@ export default function SmartCalendarDemo() {
             </View>
           </View>
 
-          {showDatePicker && (
-            <DateTimePicker
-              value={startDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(_event: any, selectedDate?: Date) => {
-                setShowDatePicker(Platform.OS === 'ios');
-                if (selectedDate) {
-                  setStartDate(selectedDate);
-                }
-              }}
-            />
-          )}
-
-          {showTimePicker && (
-            <DateTimePicker
-              value={startTime}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(_event: any, selectedTime?: Date) => {
-                setShowTimePicker(Platform.OS === 'ios');
-                if (selectedTime) {
-                  setStartTime(selectedTime);
-                }
-              }}
-            />
-          )}
+          <DateTimePickerModal
+            visible={showDateTimePicker}
+            title={dateTimePickerMode === 'date' ? 'Select Date' : 'Select Time'}
+            initialValue={{ date: dateTimePickerMode === 'date' ? startDate : startTime, isASAP: false }}
+            allowASAP={false}
+            mode="event"
+            onCancel={() => setShowDateTimePicker(false)}
+            onDone={(result: DateTimePickerResult) => {
+              if (dateTimePickerMode === 'date') {
+                setStartDate(result.date);
+              } else {
+                setStartTime(result.date);
+              }
+              setShowDateTimePicker(false);
+            }}
+          />
 
           <Pressable
             style={({ pressed }) => [

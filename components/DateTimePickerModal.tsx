@@ -414,7 +414,7 @@ export default function DateTimePickerModal({
                     />
                     <Pressable
                       onPress={() => setShowIOSTime(false)}
-                      style={[styles.inlineDoneBtn, { backgroundColor: theme.accent }]}
+                      style={[styles.inlineDoneBtn, { backgroundColor: theme.accent, marginTop: 16 }]}
                       testID="dateTimePickerIOSTimeDone"
                     >
                       <Text style={styles.inlineDoneText}>Done</Text>
@@ -567,7 +567,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 18,
     padding: 20,
-    paddingTop: 30,
+    paddingTop: 20,
   },
   inlineDoneBtn: {
     margin: 12,

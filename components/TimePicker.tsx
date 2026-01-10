@@ -1,14 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Animated,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Minus, Plus } from 'lucide-react-native';
 
 interface TimePickerProps {
   value: Date;
@@ -16,12 +15,8 @@ interface TimePickerProps {
   accentColor?: string;
 }
 
-const ITEM_HEIGHT = 52;
-const VISIBLE_ITEMS = 5;
-const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
-
-const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
-const MINUTES = Array.from({ length: 60 }, (_, i) => i);
+const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+const QUICK_MINUTES = [0, 15, 30, 45];
 
 function padZero(n: number): string {
   return n.toString().padStart(2, '0');
@@ -37,30 +32,18 @@ export default function TimePicker({ value, onChange, accentColor = '#3B82F6' }:
   const [selectedHour, setSelectedHour] = useState(hour12);
   const [selectedMinute, setSelectedMinute] = useState(minute);
   const [selectedPeriod, setSelectedPeriod] = useState<'AM' | 'PM'>(isPM ? 'PM' : 'AM');
-
-  const hourScrollRef = useRef<ScrollView>(null);
-  const minuteScrollRef = useRef<ScrollView>(null);
-  const isInitialMount = useRef(true);
+  const [showMinuteGrid, setShowMinuteGrid] = useState(false);
 
   useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      
-      setTimeout(() => {
-        const hourIndex = HOURS.indexOf(hour12);
-        const minuteIndex = minute;
-        
-        hourScrollRef.current?.scrollTo({
-          y: hourIndex * ITEM_HEIGHT,
-          animated: false,
-        });
-        minuteScrollRef.current?.scrollTo({
-          y: minuteIndex * ITEM_HEIGHT,
-          animated: false,
-        });
-      }, 50);
-    }
-  }, [hour12, minute]);
+    const h24 = value.getHours();
+    const m = value.getMinutes();
+    const pm = h24 >= 12;
+    const h12 = h24 % 12 || 12;
+    
+    setSelectedHour(h12);
+    setSelectedMinute(m);
+    setSelectedPeriod(pm ? 'PM' : 'AM');
+  }, [value]);
 
   const updateTime = useCallback((hour: number, min: number, period: 'AM' | 'PM') => {
     let hour24Value = hour;
@@ -75,233 +58,190 @@ export default function TimePicker({ value, onChange, accentColor = '#3B82F6' }:
     onChange(newDate);
   }, [onChange, value]);
 
-  const handleHourScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
-    const y = event.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clampedIndex = Math.max(0, Math.min(index, HOURS.length - 1));
-    const newHour = HOURS[clampedIndex];
-    
-    if (newHour !== selectedHour) {
-      setSelectedHour(newHour);
-      if (Platform.OS !== 'web') {
-        Haptics.selectionAsync();
-      }
-    }
-  }, [selectedHour]);
-
-  const handleHourScrollEnd = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
-    const y = event.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clampedIndex = Math.max(0, Math.min(index, HOURS.length - 1));
-    const newHour = HOURS[clampedIndex];
-    
-    hourScrollRef.current?.scrollTo({
-      y: clampedIndex * ITEM_HEIGHT,
-      animated: true,
-    });
-    
-    setSelectedHour(newHour);
-    updateTime(newHour, selectedMinute, selectedPeriod);
-  }, [selectedMinute, selectedPeriod, updateTime]);
-
-  const handleMinuteScroll = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
-    const y = event.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clampedIndex = Math.max(0, Math.min(index, MINUTES.length - 1));
-    const newMinute = MINUTES[clampedIndex];
-    
-    if (newMinute !== selectedMinute) {
-      setSelectedMinute(newMinute);
-      if (Platform.OS !== 'web') {
-        Haptics.selectionAsync();
-      }
-    }
-  }, [selectedMinute]);
-
-  const handleMinuteScrollEnd = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
-    const y = event.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    const clampedIndex = Math.max(0, Math.min(index, MINUTES.length - 1));
-    const newMinute = MINUTES[clampedIndex];
-    
-    minuteScrollRef.current?.scrollTo({
-      y: clampedIndex * ITEM_HEIGHT,
-      animated: true,
-    });
-    
-    setSelectedMinute(newMinute);
-    updateTime(selectedHour, newMinute, selectedPeriod);
-  }, [selectedHour, selectedPeriod, updateTime]);
-
-  const handlePeriodChange = useCallback((period: 'AM' | 'PM') => {
-    if (period !== selectedPeriod) {
-      setSelectedPeriod(period);
-      updateTime(selectedHour, selectedMinute, period);
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-    }
-  }, [selectedHour, selectedMinute, selectedPeriod, updateTime]);
-
   const selectHour = useCallback((hour: number) => {
-    const index = HOURS.indexOf(hour);
-    hourScrollRef.current?.scrollTo({
-      y: index * ITEM_HEIGHT,
-      animated: true,
-    });
     setSelectedHour(hour);
     updateTime(hour, selectedMinute, selectedPeriod);
     if (Platform.OS !== 'web') {
-      Haptics.selectionAsync();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   }, [selectedMinute, selectedPeriod, updateTime]);
 
   const selectMinute = useCallback((min: number) => {
-    minuteScrollRef.current?.scrollTo({
-      y: min * ITEM_HEIGHT,
-      animated: true,
-    });
     setSelectedMinute(min);
     updateTime(selectedHour, min, selectedPeriod);
     if (Platform.OS !== 'web') {
-      Haptics.selectionAsync();
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   }, [selectedHour, selectedPeriod, updateTime]);
 
-  const renderWheelItem = (item: number, isSelected: boolean, isHour: boolean) => {
-    const displayValue = isHour ? item.toString() : padZero(item);
-    
-    return (
-      <Pressable
-        key={item}
-        style={styles.wheelItem}
-        onPress={() => isHour ? selectHour(item) : selectMinute(item)}
-      >
-        <Animated.Text
-          style={[
-            styles.wheelText,
-            isSelected && [styles.wheelTextSelected, { color: accentColor }],
-          ]}
-        >
-          {displayValue}
-        </Animated.Text>
-      </Pressable>
-    );
-  };
+  const togglePeriod = useCallback((period: 'AM' | 'PM') => {
+    if (period !== selectedPeriod) {
+      setSelectedPeriod(period);
+      updateTime(selectedHour, selectedMinute, period);
+      if (Platform.OS !== 'web') {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+    }
+  }, [selectedHour, selectedMinute, selectedPeriod, updateTime]);
+
+  const adjustMinute = useCallback((delta: number) => {
+    let newMin = selectedMinute + delta;
+    if (newMin < 0) newMin = 59;
+    if (newMin > 59) newMin = 0;
+    selectMinute(newMin);
+  }, [selectMinute, selectedMinute]);
+
+  const selectQuickTime = useCallback((h: number, m: number, p: 'AM' | 'PM') => {
+    setSelectedHour(h);
+    setSelectedMinute(m);
+    setSelectedPeriod(p);
+    updateTime(h, m, p);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, [updateTime]);
 
   return (
     <View style={styles.container}>
       <View style={styles.displayRow}>
         <Text style={[styles.displayTime, { color: accentColor }]}>
-          {selectedHour}:{padZero(selectedMinute)} {selectedPeriod}
+          {selectedHour}:{padZero(selectedMinute)}
         </Text>
-      </View>
-
-      <View style={styles.pickerContainer}>
-        <View style={[styles.selectionIndicator, { borderColor: accentColor }]} />
-        
-        <View style={styles.wheelWrapper}>
-          <Text style={styles.wheelLabel}>Hour</Text>
-          <ScrollView
-            ref={hourScrollRef}
-            style={styles.wheel}
-            contentContainerStyle={styles.wheelContent}
-            showsVerticalScrollIndicator={false}
-            snapToInterval={ITEM_HEIGHT}
-            decelerationRate="fast"
-            onScroll={handleHourScroll}
-            onMomentumScrollEnd={handleHourScrollEnd}
-            onScrollEndDrag={handleHourScrollEnd}
-            scrollEventThrottle={16}
-          >
-            {HOURS.map((hour) => renderWheelItem(hour, hour === selectedHour, true))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.colonContainer}>
-          <Text style={styles.colon}>:</Text>
-        </View>
-
-        <View style={styles.wheelWrapper}>
-          <Text style={styles.wheelLabel}>Min</Text>
-          <ScrollView
-            ref={minuteScrollRef}
-            style={styles.wheel}
-            contentContainerStyle={styles.wheelContent}
-            showsVerticalScrollIndicator={false}
-            snapToInterval={ITEM_HEIGHT}
-            decelerationRate="fast"
-            onScroll={handleMinuteScroll}
-            onMomentumScrollEnd={handleMinuteScrollEnd}
-            onScrollEndDrag={handleMinuteScrollEnd}
-            scrollEventThrottle={16}
-          >
-            {MINUTES.map((min) => renderWheelItem(min, min === selectedMinute, false))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.periodContainer}>
+        <View style={styles.periodToggle}>
           <Pressable
             style={[
-              styles.periodButton,
-              selectedPeriod === 'AM' && [styles.periodButtonActive, { backgroundColor: accentColor }],
+              styles.periodBtn,
+              selectedPeriod === 'AM' && [styles.periodBtnActive, { backgroundColor: accentColor }],
             ]}
-            onPress={() => handlePeriodChange('AM')}
+            onPress={() => togglePeriod('AM')}
           >
-            <Text
-              style={[
-                styles.periodText,
-                selectedPeriod === 'AM' && styles.periodTextActive,
-              ]}
-            >
+            <Text style={[styles.periodText, selectedPeriod === 'AM' && styles.periodTextActive]}>
               AM
             </Text>
           </Pressable>
           <Pressable
             style={[
-              styles.periodButton,
-              selectedPeriod === 'PM' && [styles.periodButtonActive, { backgroundColor: accentColor }],
+              styles.periodBtn,
+              selectedPeriod === 'PM' && [styles.periodBtnActive, { backgroundColor: accentColor }],
             ]}
-            onPress={() => handlePeriodChange('PM')}
+            onPress={() => togglePeriod('PM')}
           >
-            <Text
-              style={[
-                styles.periodText,
-                selectedPeriod === 'PM' && styles.periodTextActive,
-              ]}
-            >
+            <Text style={[styles.periodText, selectedPeriod === 'PM' && styles.periodTextActive]}>
               PM
             </Text>
           </Pressable>
         </View>
       </View>
 
-      <View style={styles.quickSelectContainer}>
-        <Text style={styles.quickSelectLabel}>Quick Select</Text>
-        <View style={styles.quickSelectRow}>
+      <View style={styles.sectionLabel}>
+        <Text style={styles.sectionLabelText}>Hour</Text>
+      </View>
+      <View style={styles.hourGrid}>
+        {HOURS.map((hour) => {
+          const isSelected = hour === selectedHour;
+          return (
+            <Pressable
+              key={hour}
+              style={[
+                styles.hourCell,
+                isSelected && [styles.hourCellSelected, { backgroundColor: accentColor }],
+              ]}
+              onPress={() => selectHour(hour)}
+            >
+              <Text style={[styles.hourText, isSelected && styles.hourTextSelected]}>
+                {hour}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={styles.sectionLabel}>
+        <Text style={styles.sectionLabelText}>Minute</Text>
+        <Pressable 
+          style={styles.finetuneToggle}
+          onPress={() => setShowMinuteGrid(!showMinuteGrid)}
+        >
+          <Text style={[styles.finetuneText, { color: accentColor }]}>
+            {showMinuteGrid ? 'Quick Select' : 'Fine Tune'}
+          </Text>
+        </Pressable>
+      </View>
+
+      {!showMinuteGrid ? (
+        <View style={styles.minuteQuickRow}>
+          {QUICK_MINUTES.map((min) => {
+            const isSelected = min === selectedMinute;
+            return (
+              <Pressable
+                key={min}
+                style={[
+                  styles.minuteQuickCell,
+                  isSelected && [styles.minuteQuickCellSelected, { backgroundColor: accentColor }],
+                ]}
+                onPress={() => selectMinute(min)}
+              >
+                <Text style={[styles.minuteQuickText, isSelected && styles.minuteQuickTextSelected]}>
+                  :{padZero(min)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={styles.minuteFineTune}>
+          <Pressable
+            style={[styles.minuteAdjustBtn, { borderColor: accentColor }]}
+            onPress={() => adjustMinute(-1)}
+          >
+            <Minus size={20} color={accentColor} />
+          </Pressable>
+          <View style={[styles.minuteDisplay, { borderColor: accentColor }]}>
+            <Text style={[styles.minuteDisplayText, { color: accentColor }]}>
+              :{padZero(selectedMinute)}
+            </Text>
+          </View>
+          <Pressable
+            style={[styles.minuteAdjustBtn, { borderColor: accentColor }]}
+            onPress={() => adjustMinute(1)}
+          >
+            <Plus size={20} color={accentColor} />
+          </Pressable>
+        </View>
+      )}
+
+      {!QUICK_MINUTES.includes(selectedMinute) && !showMinuteGrid && (
+        <View style={styles.customMinuteIndicator}>
+          <Text style={styles.customMinuteText}>
+            Current: :{padZero(selectedMinute)}
+          </Text>
+        </View>
+      )}
+
+      <View style={styles.quickPresetsSection}>
+        <Text style={styles.quickPresetsLabel}>Quick Times</Text>
+        <View style={styles.quickPresetsRow}>
           {[
-            { h: 9, m: 0, p: 'AM' as const },
-            { h: 12, m: 0, p: 'PM' as const },
-            { h: 3, m: 0, p: 'PM' as const },
-            { h: 6, m: 0, p: 'PM' as const },
-            { h: 8, m: 0, p: 'PM' as const },
+            { h: 9, m: 0, p: 'AM' as const, label: '9 AM' },
+            { h: 12, m: 0, p: 'PM' as const, label: 'Noon' },
+            { h: 5, m: 0, p: 'PM' as const, label: '5 PM' },
+            { h: 7, m: 30, p: 'PM' as const, label: '7:30 PM' },
           ].map((preset, idx) => {
-            const isActive = selectedHour === preset.h && selectedMinute === preset.m && selectedPeriod === preset.p;
+            const isActive = 
+              selectedHour === preset.h && 
+              selectedMinute === preset.m && 
+              selectedPeriod === preset.p;
             return (
               <Pressable
                 key={idx}
                 style={[
-                  styles.quickSelectChip,
-                  isActive && [styles.quickSelectChipActive, { backgroundColor: accentColor }],
+                  styles.quickPresetChip,
+                  isActive && [styles.quickPresetChipActive, { backgroundColor: accentColor }],
                 ]}
-                onPress={() => {
-                  selectHour(preset.h);
-                  selectMinute(preset.m);
-                  handlePeriodChange(preset.p);
-                }}
+                onPress={() => selectQuickTime(preset.h, preset.m, preset.p)}
               >
-                <Text style={[styles.quickSelectText, isActive && styles.quickSelectTextActive]}>
-                  {preset.h}:{padZero(preset.m)} {preset.p}
+                <Text style={[styles.quickPresetText, isActive && styles.quickPresetTextActive]}>
+                  {preset.label}
                 </Text>
               </Pressable>
             );
@@ -317,139 +257,199 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   displayRow: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  displayTime: {
-    fontSize: 42,
-    fontWeight: '700' as const,
-    letterSpacing: 1,
-  },
-  pickerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: PICKER_HEIGHT,
-    position: 'relative',
+    gap: 16,
+    marginBottom: 24,
   },
-  selectionIndicator: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    top: ITEM_HEIGHT * 2,
-    height: ITEM_HEIGHT,
-    borderRadius: 12,
-    borderWidth: 2,
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
-  },
-  wheelWrapper: {
-    alignItems: 'center',
-  },
-  wheelLabel: {
-    position: 'absolute',
-    top: -24,
-    fontSize: 11,
+  displayTime: {
+    fontSize: 48,
     fontWeight: '700' as const,
-    color: '#94A3B8',
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.5,
+    letterSpacing: -1,
   },
-  wheel: {
-    height: PICKER_HEIGHT,
-    width: 80,
+  periodToggle: {
+    flexDirection: 'column',
+    gap: 4,
   },
-  wheelContent: {
-    paddingVertical: ITEM_HEIGHT * 2,
-  },
-  wheelItem: {
-    height: ITEM_HEIGHT,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  wheelText: {
-    fontSize: 28,
-    fontWeight: '500' as const,
-    color: '#94A3B8',
-  },
-  wheelTextSelected: {
-    fontSize: 32,
-    fontWeight: '700' as const,
-  },
-  colonContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 24,
-  },
-  colon: {
-    fontSize: 32,
-    fontWeight: '700' as const,
-    color: '#64748B',
-  },
-  periodContainer: {
-    marginLeft: 16,
-    gap: 8,
-  },
-  periodButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderRadius: 12,
+  periodBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
     backgroundColor: 'rgba(148, 163, 184, 0.15)',
   },
-  periodButtonActive: {
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+  periodBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   periodText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700' as const,
     color: '#64748B',
+    textAlign: 'center' as const,
   },
   periodTextActive: {
     color: '#FFFFFF',
   },
-  quickSelectContainer: {
-    marginTop: 24,
-    paddingTop: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(148, 163, 184, 0.2)',
+  sectionLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+    paddingHorizontal: 4,
   },
-  quickSelectLabel: {
+  sectionLabelText: {
     fontSize: 12,
     fontWeight: '700' as const,
     color: '#94A3B8',
     textTransform: 'uppercase' as const,
     letterSpacing: 0.5,
-    marginBottom: 12,
-    textAlign: 'center',
   },
-  quickSelectRow: {
+  finetuneToggle: {
+    padding: 4,
+  },
+  finetuneText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  hourGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 20,
+  },
+  hourCell: {
+    width: '23%',
+    aspectRatio: 1.6,
+    borderRadius: 12,
+    backgroundColor: 'rgba(148, 163, 184, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hourCellSelected: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  hourText: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+    color: '#64748B',
+  },
+  hourTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
+  minuteQuickRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  minuteQuickCell: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: 'rgba(148, 163, 184, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  minuteQuickCellSelected: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  minuteQuickText: {
+    fontSize: 18,
+    fontWeight: '600' as const,
+    color: '#64748B',
+  },
+  minuteQuickTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
+  minuteFineTune: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 16,
+  },
+  minuteAdjustBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(148, 163, 184, 0.08)',
+  },
+  minuteDisplay: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 2,
+    backgroundColor: 'rgba(148, 163, 184, 0.08)',
+  },
+  minuteDisplayText: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+  },
+  customMinuteIndicator: {
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  customMinuteText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    fontWeight: '500' as const,
+  },
+  quickPresetsSection: {
+    marginTop: 8,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(148, 163, 184, 0.15)',
+  },
+  quickPresetsLabel: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#94A3B8',
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    textAlign: 'center' as const,
+  },
+  quickPresetsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
   },
-  quickSelectChip: {
+  quickPresetChip: {
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: 'rgba(148, 163, 184, 0.12)',
   },
-  quickSelectChipActive: {
-    shadowColor: '#3B82F6',
+  quickPresetChipActive: {
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
   },
-  quickSelectText: {
+  quickPresetText: {
     fontSize: 13,
     fontWeight: '600' as const,
     color: '#64748B',
   },
-  quickSelectTextActive: {
+  quickPresetTextActive: {
     color: '#FFFFFF',
   },
 });
