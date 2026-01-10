@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Platform,
   Pressable,
@@ -40,9 +40,22 @@ interface ScrollColumnProps {
 function ScrollColumn({ data, selectedIndex, onSelect, formatItem, accentColor, lightBackground }: ScrollColumnProps) {
   const scrollRef = useRef<ScrollView>(null);
   const isScrolling = useRef(false);
+  const hasInitialized = useRef(false);
+  const lastSelectedIndex = useRef(selectedIndex);
 
   useEffect(() => {
-    if (!isScrolling.current) {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      scrollRef.current?.scrollTo({
+        y: selectedIndex * ITEM_HEIGHT,
+        animated: false,
+      });
+      lastSelectedIndex.current = selectedIndex;
+      return;
+    }
+    
+    if (!isScrolling.current && selectedIndex !== lastSelectedIndex.current) {
+      lastSelectedIndex.current = selectedIndex;
       scrollRef.current?.scrollTo({
         y: selectedIndex * ITEM_HEIGHT,
         animated: false,
@@ -56,7 +69,8 @@ function ScrollColumn({ data, selectedIndex, onSelect, formatItem, accentColor, 
     const index = Math.round(y / ITEM_HEIGHT);
     const clampedIndex = Math.max(0, Math.min(data.length - 1, index));
     
-    if (clampedIndex !== selectedIndex) {
+    if (clampedIndex !== lastSelectedIndex.current) {
+      lastSelectedIndex.current = clampedIndex;
       onSelect(clampedIndex);
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -67,7 +81,7 @@ function ScrollColumn({ data, selectedIndex, onSelect, formatItem, accentColor, 
       y: clampedIndex * ITEM_HEIGHT,
       animated: true,
     });
-  }, [data.length, onSelect, selectedIndex]);
+  }, [data.length, onSelect]);
 
   const handleScrollBegin = useCallback(() => {
     isScrolling.current = true;
@@ -130,16 +144,43 @@ function ScrollColumn({ data, selectedIndex, onSelect, formatItem, accentColor, 
 }
 
 export default function TimePicker({ value, onChange, accentColor = '#3B82F6', lightBackground = false }: TimePickerProps) {
+  const valueRef = useRef(value);
+  
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
   const hour24 = value.getHours();
   const minute = value.getMinutes();
   const isPM = hour24 >= 12;
   const hour12 = hour24 % 12 || 12;
 
-  const hourIndex = HOURS.indexOf(hour12);
-  const minuteIndex = minute;
-  const periodIndex = isPM ? 1 : 0;
+  const [localHourIndex, setLocalHourIndex] = useState(HOURS.indexOf(hour12));
+  const [localMinuteIndex, setLocalMinuteIndex] = useState(minute);
+  const [localPeriodIndex, setLocalPeriodIndex] = useState(isPM ? 1 : 0);
+
+  const isUpdatingFromProps = useRef(false);
+
+  useEffect(() => {
+    const newHourIndex = HOURS.indexOf(hour12);
+    const newMinuteIndex = minute;
+    const newPeriodIndex = isPM ? 1 : 0;
+    
+    if (localHourIndex !== newHourIndex || localMinuteIndex !== newMinuteIndex || localPeriodIndex !== newPeriodIndex) {
+      isUpdatingFromProps.current = true;
+      setLocalHourIndex(newHourIndex);
+      setLocalMinuteIndex(newMinuteIndex);
+      setLocalPeriodIndex(newPeriodIndex);
+      setTimeout(() => {
+        isUpdatingFromProps.current = false;
+      }, 100);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hour12, minute, isPM]);
 
   const updateTime = useCallback((h12: number, min: number, pm: boolean) => {
+    if (isUpdatingFromProps.current) return;
+    
     let h24 = h12;
     if (pm && h12 !== 12) {
       h24 = h12 + 12;
@@ -147,30 +188,39 @@ export default function TimePicker({ value, onChange, accentColor = '#3B82F6', l
       h24 = 0;
     }
 
-    const newDate = new Date(value);
+    const newDate = new Date(valueRef.current);
     newDate.setHours(h24, min, 0, 0);
     onChange(newDate);
-  }, [onChange, value]);
+  }, [onChange]);
 
   const handleHourChange = useCallback((index: number) => {
+    setLocalHourIndex(index);
     const newHour = HOURS[index];
-    updateTime(newHour, minute, isPM);
-  }, [minute, isPM, updateTime]);
+    const currentMinute = localMinuteIndex;
+    const currentPM = localPeriodIndex === 1;
+    updateTime(newHour, currentMinute, currentPM);
+  }, [localMinuteIndex, localPeriodIndex, updateTime]);
 
   const handleMinuteChange = useCallback((index: number) => {
-    updateTime(hour12, index, isPM);
-  }, [hour12, isPM, updateTime]);
+    setLocalMinuteIndex(index);
+    const currentHour = HOURS[localHourIndex];
+    const currentPM = localPeriodIndex === 1;
+    updateTime(currentHour, index, currentPM);
+  }, [localHourIndex, localPeriodIndex, updateTime]);
 
   const handlePeriodChange = useCallback((index: number) => {
-    updateTime(hour12, minute, index === 1);
-  }, [hour12, minute, updateTime]);
+    setLocalPeriodIndex(index);
+    const currentHour = HOURS[localHourIndex];
+    const currentMinute = localMinuteIndex;
+    updateTime(currentHour, currentMinute, index === 1);
+  }, [localHourIndex, localMinuteIndex, updateTime]);
 
   return (
     <View style={styles.container}>
       <View style={styles.pickerRow}>
         <ScrollColumn
           data={HOURS}
-          selectedIndex={hourIndex}
+          selectedIndex={localHourIndex}
           onSelect={handleHourChange}
           accentColor={accentColor}
           lightBackground={lightBackground}
@@ -178,7 +228,7 @@ export default function TimePicker({ value, onChange, accentColor = '#3B82F6', l
         <Text style={[styles.separator, lightBackground && styles.separatorLight]}>:</Text>
         <ScrollColumn
           data={MINUTES}
-          selectedIndex={minuteIndex}
+          selectedIndex={localMinuteIndex}
           onSelect={handleMinuteChange}
           formatItem={(m) => padZero(m as number)}
           accentColor={accentColor}
@@ -186,7 +236,7 @@ export default function TimePicker({ value, onChange, accentColor = '#3B82F6', l
         />
         <ScrollColumn
           data={PERIODS}
-          selectedIndex={periodIndex}
+          selectedIndex={localPeriodIndex}
           onSelect={handlePeriodChange}
           accentColor={accentColor}
           lightBackground={lightBackground}
