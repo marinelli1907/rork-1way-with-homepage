@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Calendar, Clock, Zap, X } from 'lucide-react-native';
+import TimePicker from './TimePicker';
 
 export type DateTimePickerResult = {
   date: Date;
@@ -144,7 +145,6 @@ export default function DateTimePickerModal({
   const [showIOSTime, setShowIOSTime] = useState<boolean>(false);
 
   const [showAndroidDate, setShowAndroidDate] = useState<boolean>(false);
-  const [showAndroidTime, setShowAndroidTime] = useState<boolean>(false);
 
   const [webDateText, setWebDateText] = useState<string>('');
   const [webTimeText, setWebTimeText] = useState<string>('');
@@ -172,7 +172,6 @@ export default function DateTimePickerModal({
     setShowIOSDate(false);
     setShowIOSTime(false);
     setShowAndroidDate(false);
-    setShowAndroidTime(false);
   }, [allowASAP, initialValue.date, initialValue.isASAP, mode, title, visible]);
 
   const theme = useMemo(() => {
@@ -203,7 +202,6 @@ export default function DateTimePickerModal({
     setShowIOSDate(false);
     setShowIOSTime(false);
     setShowAndroidDate(false);
-    setShowAndroidTime(false);
   }, []);
 
   const requestOpenDate = useCallback(() => {
@@ -222,14 +220,7 @@ export default function DateTimePickerModal({
   const requestOpenTime = useCallback(() => {
     setDraftIsASAP(false);
     closeAllPickers();
-    if (Platform.OS === 'ios') {
-      setShowIOSTime(true);
-      return;
-    }
-    if (Platform.OS === 'android') {
-      setShowAndroidTime(true);
-      return;
-    }
+    setShowIOSTime(true);
   }, [closeAllPickers]);
 
   const commitDone = useCallback(() => {
@@ -339,18 +330,17 @@ export default function DateTimePickerModal({
                     testID="dateTimePickerWebDate"
                   />
                 </View>
-                <View style={styles.webField}>
-                  <Text style={[styles.fieldLabel, { color: theme.subtext }]}>Time</Text>
-                  <TextInput
-                    value={webTimeText}
-                    onChangeText={(t) => {
+                <View style={[styles.webTimePickerWrapper, { borderColor: theme.border, backgroundColor: theme.card, borderWidth: 1, borderRadius: 18, padding: 20 }]}>
+                  <TimePicker
+                    value={draftDate}
+                    onChange={(newDate) => {
                       setDraftIsASAP(false);
-                      setWebTimeText(t);
+                      const next = new Date(draftDate);
+                      next.setHours(newDate.getHours(), newDate.getMinutes(), 0, 0);
+                      setDraftDate(next);
+                      setWebTimeText(formatTime12h(next));
                     }}
-                    style={[styles.webInput, { borderColor: theme.border, color: theme.text }]}
-                    placeholder="7:30 PM"
-                    placeholderTextColor={theme.subtext}
-                    testID="dateTimePickerWebTime"
+                    accentColor={theme.accent}
                   />
                 </View>
               </View>
@@ -410,19 +400,17 @@ export default function DateTimePickerModal({
                   </View>
                 ) : null}
 
-                {Platform.OS === 'ios' && showIOSTime ? (
-                  <View style={[styles.pickerPanel, { borderColor: theme.border, backgroundColor: theme.card }]}>
-                    <DateTimePicker
+                {showIOSTime ? (
+                  <View style={[styles.timePickerPanel, { borderColor: theme.border, backgroundColor: theme.card }]}>
+                    <TimePicker
                       value={draftDate}
-                      mode="time"
-                      display="spinner"
-                      onChange={(_, selected) => {
-                        if (!selected) return;
+                      onChange={(newDate) => {
                         setDraftIsASAP(false);
                         const next = new Date(draftDate);
-                        next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+                        next.setHours(newDate.getHours(), newDate.getMinutes(), 0, 0);
                         setDraftDate(next);
                       }}
+                      accentColor={theme.accent}
                     />
                     <Pressable
                       onPress={() => setShowIOSTime(false)}
@@ -450,21 +438,7 @@ export default function DateTimePickerModal({
                   />
                 ) : null}
 
-                {Platform.OS === 'android' && showAndroidTime ? (
-                  <DateTimePicker
-                    value={draftDate}
-                    mode="time"
-                    display="default"
-                    onChange={(event, selected) => {
-                      setShowAndroidTime(false);
-                      if (event.type === 'dismissed' || !selected) return;
-                      setDraftIsASAP(false);
-                      const next = new Date(draftDate);
-                      next.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
-                      setDraftDate(next);
-                    }}
-                  />
-                ) : null}
+                
               </>
             )}
           </View>
@@ -589,6 +563,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
   },
+  timePickerPanel: {
+    borderWidth: 1,
+    borderRadius: 18,
+    padding: 20,
+    paddingTop: 30,
+  },
   inlineDoneBtn: {
     margin: 12,
     height: 42,
@@ -602,10 +582,13 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
   },
   webGrid: {
-    gap: 14,
+    gap: 20,
   },
   webField: {
     gap: 8,
+  },
+  webTimePickerWrapper: {
+    marginTop: 8,
   },
   fieldLabel: {
     fontSize: 12,
