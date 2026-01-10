@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { Calendar, Plus, Edit, Copy, Trash2, Download, List, History } from 'lucide-react-native';
+import { Calendar, Plus, Edit, Copy, Trash2, Download, List, History, Clock } from 'lucide-react-native';
 import React, { useState, useCallback } from 'react';
 import {
   View,
@@ -16,6 +16,7 @@ import {
 import { useEvents } from '@/providers/EventsProvider';
 import { Event } from '@/types';
 import MonthCalendar from '@/components/MonthCalendar';
+import HourlyAgenda from '@/components/HourlyAgenda';
 import RotatingAdHeader from '@/components/RotatingAdHeader';
 
 
@@ -37,7 +38,8 @@ export default function MyEventsScreen() {
   const [isImporting, setIsImporting] = useState(false);
   const [swipedId, setSwipedId] = useState<string | null>(null);
   const [swipeAnimations] = useState<Record<string, Animated.Value>>({});
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
+  const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'hourly'>('calendar');
+  const [hourlyDate, setHourlyDate] = useState<Date>(new Date());
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [eventActionsVisible, setEventActionsVisible] = useState(false);
 
@@ -301,23 +303,38 @@ export default function MyEventsScreen() {
       <View style={styles.toolbarContainer}>
         <View style={styles.toolbarButtons}>
           <Pressable
-            style={styles.toolbarButton}
-            onPress={() => setViewMode(viewMode === 'list' ? 'calendar' : 'list')}
+            style={[styles.toolbarButton, viewMode === 'calendar' && styles.toolbarButtonActive]}
+            onPress={() => setViewMode('calendar')}
+            testID="myEventsViewCalendar"
           >
-            {viewMode === 'list' ? (
-              <Calendar size={22} color="#1E3A8A" strokeWidth={2} />
-            ) : (
-              <List size={22} color="#1E3A8A" strokeWidth={2} />
-            )}
-            <Text style={styles.toolbarButtonText}>
-              {viewMode === 'list' ? 'Calendar' : 'List'}
-            </Text>
+            <Calendar size={20} color={viewMode === 'calendar' ? '#FFFFFF' : '#1E3A8A'} strokeWidth={2} />
+            <Text style={[styles.toolbarButtonText, viewMode === 'calendar' && styles.toolbarButtonTextActive]}>Calendar</Text>
           </Pressable>
+
+          <Pressable
+            style={[styles.toolbarButton, viewMode === 'list' && styles.toolbarButtonActive]}
+            onPress={() => setViewMode('list')}
+            testID="myEventsViewList"
+          >
+            <List size={20} color={viewMode === 'list' ? '#FFFFFF' : '#1E3A8A'} strokeWidth={2} />
+            <Text style={[styles.toolbarButtonText, viewMode === 'list' && styles.toolbarButtonTextActive]}>List</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.toolbarButton, viewMode === 'hourly' && styles.toolbarButtonActive]}
+            onPress={() => setViewMode('hourly')}
+            testID="myEventsViewHourly"
+          >
+            <Clock size={20} color={viewMode === 'hourly' ? '#FFFFFF' : '#1E3A8A'} strokeWidth={2} />
+            <Text style={[styles.toolbarButtonText, viewMode === 'hourly' && styles.toolbarButtonTextActive]}>Hourly</Text>
+          </Pressable>
+
           <Pressable
             style={styles.toolbarButton}
             onPress={() => router.push('/past')}
+            testID="myEventsViewPast"
           >
-            <History size={22} color="#1E3A8A" strokeWidth={2} />
+            <History size={20} color="#1E3A8A" strokeWidth={2} />
             <Text style={styles.toolbarButtonText}>Past</Text>
           </Pressable>
         </View>
@@ -349,6 +366,15 @@ export default function MyEventsScreen() {
       ) : viewMode === 'calendar' ? (
         <MonthCalendar 
           events={upcomingEvents} 
+          onEventUpdate={updateEvent}
+          onEventDuplicate={duplicateEvent}
+          onEventDelete={deleteEvent}
+        />
+      ) : viewMode === 'hourly' ? (
+        <HourlyAgenda
+          events={upcomingEvents}
+          selectedDate={hourlyDate}
+          onDateChange={setHourlyDate}
           onEventUpdate={updateEvent}
           onEventDuplicate={duplicateEvent}
           onEventDelete={deleteEvent}
@@ -485,8 +511,14 @@ const styles = StyleSheet.create({
   },
   toolbarButtonText: {
     fontSize: 14,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
     color: '#1E3A8A',
+  },
+  toolbarButtonActive: {
+    backgroundColor: '#1E3A8A',
+  },
+  toolbarButtonTextActive: {
+    color: '#FFFFFF',
   },
   selectionBar: {
     flexDirection: 'row',
