@@ -9,10 +9,10 @@ interface RadiusSliderProps {
 
 export default function RadiusSlider({ value, onChange }: RadiusSliderProps) {
   return (
-    <View style={styles.container}>
+    <View style={styles.container} testID="radiusSlider">
       <View style={styles.header}>
-        <Text style={styles.label}>Search radius</Text>
-        <Text style={styles.value}>{value} miles</Text>
+        <Text style={styles.label}>Radius</Text>
+        <Text style={styles.value}>{value} mi</Text>
       </View>
       <Slider
         style={styles.slider}
@@ -31,7 +31,7 @@ export default function RadiusSlider({ value, onChange }: RadiusSliderProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 4,
   },
   header: {
     flexDirection: 'row',
@@ -39,17 +39,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#1E293B',
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: '#334155',
+    letterSpacing: 0.2,
   },
   value: {
-    fontSize: 14,
-    fontWeight: '700' as const,
+    fontSize: 12,
+    fontWeight: '800' as const,
     color: '#001f3f',
+    letterSpacing: 0.2,
   },
   slider: {
     width: '100%',
-    height: 40,
+    height: 28,
   },
 });

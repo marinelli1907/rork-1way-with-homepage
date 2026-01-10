@@ -253,7 +253,7 @@ export default function DiscoverScreen() {
             ]}
             onPress={() => setShowLocationModal(true)}
           >
-            <MapPinned size={18} color="#1E3A8A" strokeWidth={2} />
+            <MapPinned size={16} color="#1E3A8A" strokeWidth={2} />
           </Pressable>
           
           <Pressable
@@ -264,14 +264,14 @@ export default function DiscoverScreen() {
             ]}
             onPress={() => setShowFavoritesOnly(!showFavoritesOnly)}
           >
-            <Heart size={18} color={showFavoritesOnly ? "#DC2626" : "#1E3A8A"} strokeWidth={2} fill={showFavoritesOnly ? "#DC2626" : "none"} />
+            <Heart size={16} color={showFavoritesOnly ? "#DC2626" : "#1E3A8A"} strokeWidth={2} fill={showFavoritesOnly ? "#DC2626" : "none"} />
           </Pressable>
           
           <Pressable
             style={({ pressed }) => [styles.actionButton, styles.actionButtonPrimary, pressed && styles.actionButtonPressed]}
             onPress={() => router.push('/create-event')}
           >
-            <Plus size={18} color="#FFFFFF" strokeWidth={2} />
+            <Plus size={16} color="#FFFFFF" strokeWidth={2} />
           </Pressable>
         </View>
       </View>
@@ -520,8 +520,8 @@ const styles = StyleSheet.create({
   discoverHeader: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
-    paddingTop: 10,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
@@ -531,8 +531,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 8,
+    paddingVertical: 7,
+    marginBottom: 6,
     gap: 8,
   },
   searchInput: {
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
     color: '#1E293B',
   },
   categoryScroll: {
-    marginBottom: 8,
+    marginBottom: 6,
   },
   categoryScrollContent: {
     gap: 6,
@@ -567,8 +567,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   distanceSliderContainer: {
-    marginTop: 4,
-    paddingVertical: 4,
+    marginTop: 2,
+    paddingVertical: 2,
   },
   scrollView: {
     flex: 1,
@@ -619,13 +619,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    paddingTop: 8,
+    paddingTop: 6,
     gap: 6,
   },
   actionButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
@@ -633,10 +633,10 @@ const styles = StyleSheet.create({
   actionButtonPrimary: {
     backgroundColor: '#E31937',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.16,
+    shadowRadius: 3,
+    elevation: 3,
   },
   actionButtonPressed: {
     opacity: 0.7,
