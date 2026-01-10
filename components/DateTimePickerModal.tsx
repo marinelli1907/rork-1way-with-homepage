@@ -1,17 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Calendar, Clock, Zap, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, X, Zap } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import TimePicker from './TimePicker';
 
 export type DateTimePickerResult = {
@@ -46,12 +45,11 @@ export function roundUpToInterval(date: Date, intervalMinutes: number): Date {
   return out;
 }
 
-function formatDateMMDDYYYY(d: Date) {
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const y = String(d.getFullYear());
-  return `${m}/${day}/${y}`;
-}
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
 
 function formatTime12h(d: Date) {
   return d.toLocaleString('en-US', {
@@ -60,73 +58,154 @@ function formatTime12h(d: Date) {
   });
 }
 
-function normalizeWebDateInput(text: string) {
-  const digits = text.replace(/[^0-9]/g, '').slice(0, 8);
-  const mm = digits.slice(0, 2);
-  const dd = digits.slice(2, 4);
-  const yyyy = digits.slice(4, 8);
-
-  if (digits.length <= 2) return mm;
-  if (digits.length <= 4) return `${mm}/${dd}`;
-  return `${mm}/${dd}/${yyyy}`;
+function isSameDay(d1: Date, d2: Date): boolean {
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate()
+  );
 }
 
-function parseWebDate(dateText: string): { y: number; m: number; d: number } | null {
-  const trimmed = dateText.trim();
-  const mdyMatch = /^\d{2}\/\d{2}\/\d{4}$/.test(trimmed);
-  if (!mdyMatch) return null;
-
-  const [mmS, ddS, yyyyS] = trimmed.split('/');
-  const mm = Number(mmS);
-  const dd = Number(ddS);
-  const yyyy = Number(yyyyS);
-
-  if (!Number.isFinite(mm) || !Number.isFinite(dd) || !Number.isFinite(yyyy)) return null;
-  if (yyyy < 1970 || yyyy > 2100) return null;
-  if (mm < 1 || mm > 12) return null;
-
-  const maxDay = new Date(yyyy, mm, 0).getDate();
-  if (dd < 1 || dd > maxDay) return null;
-
-  return { y: yyyy, m: mm, d: dd };
+function getDaysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
 }
 
-function parseWebTime(timeText: string): { hh: number; mm: number } | null {
-  const raw = timeText.trim().toUpperCase();
+function getFirstDayOfMonth(year: number, month: number): number {
+  return new Date(year, month, 1).getDay();
+}
 
-  const ampmMatch = raw.match(/^\s*(\d{1,2})\s*:\s*(\d{2})\s*(AM|PM)\s*$/);
-  if (ampmMatch) {
-    const h = Number(ampmMatch[1]);
-    const m = Number(ampmMatch[2]);
-    const ap = ampmMatch[3];
-    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
-    if (h < 1 || h > 12) return null;
-    if (m < 0 || m > 59) return null;
+interface CalendarProps {
+  selectedDate: Date;
+  onSelectDate: (date: Date) => void;
+  accentColor: string;
+  textColor: string;
+  subtextColor: string;
+}
 
-    let hh = h % 12;
-    if (ap === 'PM') hh += 12;
-    return { hh, mm: m };
+function Calendar({ selectedDate, onSelectDate, accentColor, textColor, subtextColor }: CalendarProps) {
+  const [viewMonth, setViewMonth] = useState(selectedDate.getMonth());
+  const [viewYear, setViewYear] = useState(selectedDate.getFullYear());
+
+  const today = new Date();
+  const daysInMonth = getDaysInMonth(viewYear, viewMonth);
+  const firstDay = getFirstDayOfMonth(viewYear, viewMonth);
+
+  const goToPrevMonth = useCallback(() => {
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear(viewYear - 1);
+    } else {
+      setViewMonth(viewMonth - 1);
+    }
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, [viewMonth, viewYear]);
+
+  const goToNextMonth = useCallback(() => {
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear(viewYear + 1);
+    } else {
+      setViewMonth(viewMonth + 1);
+    }
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, [viewMonth, viewYear]);
+
+  const handleDayPress = useCallback((day: number) => {
+    const newDate = new Date(selectedDate);
+    newDate.setFullYear(viewYear, viewMonth, day);
+    onSelectDate(newDate);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+  }, [onSelectDate, selectedDate, viewMonth, viewYear]);
+
+  const weeks: (number | null)[][] = [];
+  let currentWeek: (number | null)[] = [];
+
+  for (let i = 0; i < firstDay; i++) {
+    currentWeek.push(null);
   }
 
-  const h24Match = raw.match(/^\s*(\d{1,2})\s*:\s*(\d{2})\s*$/);
-  if (h24Match) {
-    const hh = Number(h24Match[1]);
-    const mm = Number(h24Match[2]);
-    if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
-    if (hh < 0 || hh > 23) return null;
-    if (mm < 0 || mm > 59) return null;
-    return { hh, mm };
+  for (let day = 1; day <= daysInMonth; day++) {
+    currentWeek.push(day);
+    if (currentWeek.length === 7) {
+      weeks.push(currentWeek);
+      currentWeek = [];
+    }
   }
 
-  return null;
-}
+  if (currentWeek.length > 0) {
+    while (currentWeek.length < 7) {
+      currentWeek.push(null);
+    }
+    weeks.push(currentWeek);
+  }
 
-function parseWebDateTime(dateText: string, timeText: string): Date | null {
-  const d = parseWebDate(dateText);
-  const t = parseWebTime(timeText);
-  if (!d || !t) return null;
-  const result = new Date(d.y, d.m - 1, d.d, t.hh, t.mm, 0, 0);
-  return Number.isNaN(result.getTime()) ? null : result;
+  return (
+    <View style={styles.calendar}>
+      <View style={styles.calendarHeader}>
+        <Pressable onPress={goToPrevMonth} style={styles.calendarNavBtn} hitSlop={8}>
+          <ChevronLeft size={22} color={textColor} />
+        </Pressable>
+        <Text style={[styles.calendarTitle, { color: textColor }]}>
+          {MONTHS[viewMonth]} {viewYear}
+        </Text>
+        <Pressable onPress={goToNextMonth} style={styles.calendarNavBtn} hitSlop={8}>
+          <ChevronRight size={22} color={textColor} />
+        </Pressable>
+      </View>
+
+      <View style={styles.weekdaysRow}>
+        {WEEKDAYS.map((day) => (
+          <View key={day} style={styles.weekdayCell}>
+            <Text style={[styles.weekdayText, { color: subtextColor }]}>{day}</Text>
+          </View>
+        ))}
+      </View>
+
+      {weeks.map((week, weekIdx) => (
+        <View key={weekIdx} style={styles.weekRow}>
+          {week.map((day, dayIdx) => {
+            if (day === null) {
+              return <View key={dayIdx} style={styles.dayCell} />;
+            }
+
+            const cellDate = new Date(viewYear, viewMonth, day);
+            const isSelected = isSameDay(cellDate, selectedDate);
+            const isToday = isSameDay(cellDate, today);
+            const isPast = cellDate < today && !isSameDay(cellDate, today);
+
+            return (
+              <Pressable
+                key={dayIdx}
+                style={[
+                  styles.dayCell,
+                  isSelected && [styles.dayCellSelected, { backgroundColor: accentColor }],
+                  isToday && !isSelected && styles.dayCellToday,
+                ]}
+                onPress={() => handleDayPress(day)}
+              >
+                <Text
+                  style={[
+                    styles.dayText,
+                    { color: isPast ? subtextColor : textColor },
+                    isSelected && styles.dayTextSelected,
+                    isToday && !isSelected && { color: accentColor },
+                  ]}
+                >
+                  {day}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  );
 }
 
 export default function DateTimePickerModal({
@@ -141,37 +220,11 @@ export default function DateTimePickerModal({
   const [draftIsASAP, setDraftIsASAP] = useState<boolean>(Boolean(initialValue.isASAP));
   const [draftDate, setDraftDate] = useState<Date>(initialValue.date);
 
-  const [showIOSDate, setShowIOSDate] = useState<boolean>(false);
-  const [showIOSTime, setShowIOSTime] = useState<boolean>(false);
-
-  const [showAndroidDate, setShowAndroidDate] = useState<boolean>(false);
-
-  const [webDateText, setWebDateText] = useState<string>('');
-  const [webTimeText, setWebTimeText] = useState<string>('');
-
   useEffect(() => {
     if (!visible) return;
-    console.log('[DateTimePickerModal] open', {
-      title,
-      allowASAP,
-      mode,
-      initial: {
-        isASAP: initialValue.isASAP,
-        iso: initialValue.date?.toISOString?.(),
-      },
-    });
-
+    console.log('[DateTimePickerModal] open', { title, allowASAP, mode });
     setDraftIsASAP(Boolean(initialValue.isASAP));
     setDraftDate(initialValue.date);
-
-    if (Platform.OS === 'web') {
-      setWebDateText(formatDateMMDDYYYY(initialValue.date));
-      setWebTimeText(formatTime12h(initialValue.date));
-    }
-
-    setShowIOSDate(false);
-    setShowIOSTime(false);
-    setShowAndroidDate(false);
   }, [allowASAP, initialValue.date, initialValue.isASAP, mode, title, visible]);
 
   const theme = useMemo(() => {
@@ -198,55 +251,34 @@ export default function DateTimePickerModal({
     };
   }, [mode]);
 
-  const closeAllPickers = useCallback(() => {
-    setShowIOSDate(false);
-    setShowIOSTime(false);
-    setShowAndroidDate(false);
-  }, []);
-
-  const requestOpenDate = useCallback(() => {
+  const handleDateSelect = useCallback((newDate: Date) => {
     setDraftIsASAP(false);
-    closeAllPickers();
-    if (Platform.OS === 'ios') {
-      setShowIOSDate(true);
-      return;
-    }
-    if (Platform.OS === 'android') {
-      setShowAndroidDate(true);
-      return;
-    }
-  }, [closeAllPickers]);
+    const updated = new Date(draftDate);
+    updated.setFullYear(newDate.getFullYear(), newDate.getMonth(), newDate.getDate());
+    setDraftDate(updated);
+  }, [draftDate]);
 
-  const requestOpenTime = useCallback(() => {
+  const handleTimeChange = useCallback((newDate: Date) => {
     setDraftIsASAP(false);
-    closeAllPickers();
-    setShowIOSTime(true);
-  }, [closeAllPickers]);
+    const updated = new Date(draftDate);
+    updated.setHours(newDate.getHours(), newDate.getMinutes(), 0, 0);
+    setDraftDate(updated);
+  }, [draftDate]);
 
   const commitDone = useCallback(() => {
-    console.log('[DateTimePickerModal] done', {
-      title,
-      isASAP: draftIsASAP,
-      iso: draftDate?.toISOString?.(),
-    });
-
+    console.log('[DateTimePickerModal] done', { title, isASAP: draftIsASAP, iso: draftDate?.toISOString?.() });
     if (draftIsASAP) {
       onDone({ date: new Date(), isASAP: true });
       return;
     }
-
-    if (Platform.OS === 'web') {
-      const parsed = parseWebDateTime(webDateText, webTimeText);
-      if (!parsed) {
-        Alert.alert('Invalid date/time', 'Use MM/DD/YYYY and a valid time (e.g. 7:30 PM).');
-        return;
-      }
-      onDone({ date: parsed, isASAP: false });
-      return;
-    }
-
     onDone({ date: draftDate, isASAP: false });
-  }, [draftDate, draftIsASAP, onDone, title, webDateText, webTimeText]);
+  }, [draftDate, draftIsASAP, onDone, title]);
+
+  const formattedDate = draftDate.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
 
   return (
     <Modal
@@ -262,7 +294,6 @@ export default function DateTimePickerModal({
             <Pressable
               onPress={() => {
                 console.log('[DateTimePickerModal] cancel');
-                closeAllPickers();
                 onCancel();
               }}
               style={styles.headerIconBtn}
@@ -277,7 +308,7 @@ export default function DateTimePickerModal({
                 {title}
               </Text>
               <Text style={[styles.headerSubtitle, { color: theme.subtext }]} numberOfLines={1}>
-                {draftIsASAP ? 'Leaving now' : `${formatDateMMDDYYYY(draftDate)} • ${formatTime12h(draftDate)}`}
+                {draftIsASAP ? 'Leaving now' : `${formattedDate} • ${formatTime12h(draftDate)}`}
               </Text>
             </View>
 
@@ -290,14 +321,16 @@ export default function DateTimePickerModal({
             </Pressable>
           </View>
 
-          <View style={styles.content}>
-            {allowASAP ? (
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+            {allowASAP && (
               <View style={styles.asapRow}>
                 <Pressable
                   onPress={() => {
                     console.log('[DateTimePickerModal] set ASAP true');
-                    closeAllPickers();
                     setDraftIsASAP(true);
+                    if (Platform.OS !== 'web') {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    }
                   }}
                   style={[
                     styles.asapPill,
@@ -309,139 +342,29 @@ export default function DateTimePickerModal({
                   <Zap size={16} color={draftIsASAP ? '#111827' : theme.asap} />
                   <Text style={[styles.asapText, { color: draftIsASAP ? '#111827' : theme.text }]}>ASAP</Text>
                 </Pressable>
-
                 <Text style={[styles.asapHint, { color: theme.subtext }]}>or pick a time</Text>
               </View>
-            ) : null}
-
-            {Platform.OS === 'web' ? (
-              <View style={styles.webGrid}>
-                <View style={styles.webField}>
-                  <Text style={[styles.fieldLabel, { color: theme.subtext }]}>Date</Text>
-                  <TextInput
-                    value={webDateText}
-                    onChangeText={(t) => {
-                      setDraftIsASAP(false);
-                      setWebDateText(normalizeWebDateInput(t));
-                    }}
-                    style={[styles.webInput, { borderColor: theme.border, color: theme.text }]}
-                    placeholder="MM/DD/YYYY"
-                    placeholderTextColor={theme.subtext}
-                    testID="dateTimePickerWebDate"
-                  />
-                </View>
-                <View style={[styles.webTimePickerWrapper, { borderColor: theme.border, backgroundColor: theme.card, borderWidth: 1, borderRadius: 18, padding: 20 }]}>
-                  <TimePicker
-                    value={draftDate}
-                    onChange={(newDate) => {
-                      setDraftIsASAP(false);
-                      const next = new Date(draftDate);
-                      next.setHours(newDate.getHours(), newDate.getMinutes(), 0, 0);
-                      setDraftDate(next);
-                      setWebTimeText(formatTime12h(next));
-                    }}
-                    accentColor={theme.accent}
-                  />
-                </View>
-              </View>
-            ) : (
-              <>
-                <View style={styles.cardsRow}>
-                  <Pressable
-                    style={[styles.cardBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
-                    onPress={requestOpenDate}
-                    testID="dateTimePickerOpenDate"
-                  >
-                    <View style={[styles.iconCircle, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
-                      <Calendar size={18} color={theme.text} />
-                    </View>
-                    <View style={styles.cardTextWrap}>
-                      <Text style={[styles.cardLabel, { color: theme.subtext }]}>Date</Text>
-                      <Text style={[styles.cardValue, { color: theme.text }]}>{formatDateMMDDYYYY(draftDate)}</Text>
-                    </View>
-                  </Pressable>
-
-                  <Pressable
-                    style={[styles.cardBtn, { borderColor: theme.border, backgroundColor: theme.card }]}
-                    onPress={requestOpenTime}
-                    testID="dateTimePickerOpenTime"
-                  >
-                    <View style={[styles.iconCircle, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
-                      <Clock size={18} color={theme.text} />
-                    </View>
-                    <View style={styles.cardTextWrap}>
-                      <Text style={[styles.cardLabel, { color: theme.subtext }]}>Time</Text>
-                      <Text style={[styles.cardValue, { color: theme.text }]}>{formatTime12h(draftDate)}</Text>
-                    </View>
-                  </Pressable>
-                </View>
-
-                {Platform.OS === 'ios' && showIOSDate ? (
-                  <View style={[styles.pickerPanel, { borderColor: theme.border, backgroundColor: theme.card }]}>
-                    <DateTimePicker
-                      value={draftDate}
-                      mode="date"
-                      display="spinner"
-                      onChange={(_, selected) => {
-                        if (!selected) return;
-                        setDraftIsASAP(false);
-                        const next = new Date(draftDate);
-                        next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
-                        setDraftDate(next);
-                      }}
-                    />
-                    <Pressable
-                      onPress={() => setShowIOSDate(false)}
-                      style={[styles.inlineDoneBtn, { backgroundColor: theme.accent }]}
-                      testID="dateTimePickerIOSDateDone"
-                    >
-                      <Text style={styles.inlineDoneText}>Done</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-
-                {showIOSTime ? (
-                  <View style={[styles.timePickerPanel, { borderColor: theme.border, backgroundColor: theme.card }]}>
-                    <TimePicker
-                      value={draftDate}
-                      onChange={(newDate) => {
-                        setDraftIsASAP(false);
-                        const next = new Date(draftDate);
-                        next.setHours(newDate.getHours(), newDate.getMinutes(), 0, 0);
-                        setDraftDate(next);
-                      }}
-                      accentColor={theme.accent}
-                    />
-                    <Pressable
-                      onPress={() => setShowIOSTime(false)}
-                      style={[styles.inlineDoneBtn, { backgroundColor: theme.accent, marginTop: 16 }]}
-                      testID="dateTimePickerIOSTimeDone"
-                    >
-                      <Text style={styles.inlineDoneText}>Done</Text>
-                    </Pressable>
-                  </View>
-                ) : null}
-
-                {Platform.OS === 'android' && showAndroidDate ? (
-                  <DateTimePicker
-                    value={draftDate}
-                    mode="date"
-                    display="default"
-                    onChange={(event, selected) => {
-                      setShowAndroidDate(false);
-                      if (event.type === 'dismissed' || !selected) return;
-                      setDraftIsASAP(false);
-                      const next = new Date(draftDate);
-                      next.setFullYear(selected.getFullYear(), selected.getMonth(), selected.getDate());
-                      setDraftDate(next);
-                    }}
-                  />
-                ) : null}
-
-                
-              </>
             )}
-          </View>
+
+            <View style={[styles.calendarCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Calendar
+                selectedDate={draftDate}
+                onSelectDate={handleDateSelect}
+                accentColor={theme.accent}
+                textColor={theme.text}
+                subtextColor={theme.subtext}
+              />
+            </View>
+
+            <View style={[styles.timeCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+              <Text style={[styles.timeLabel, { color: theme.subtext }]}>Time</Text>
+              <TimePicker
+                value={draftDate}
+                onChange={handleTimeChange}
+                accentColor={theme.accent}
+              />
+            </View>
+          </ScrollView>
         </SafeAreaView>
       </View>
     </Modal>
@@ -499,12 +422,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 18,
-    gap: 14,
   },
   asapRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    marginBottom: 16,
   },
   asapPill: {
     flexDirection: 'row',
@@ -524,85 +447,84 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600' as const,
   },
-  cardsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cardBtn: {
-    flex: 1,
+  calendarCard: {
     borderRadius: 16,
     borderWidth: 1,
-    padding: 14,
+    padding: 16,
+    marginBottom: 16,
+  },
+  calendar: {
+    width: '100%',
+  },
+  calendarHeader: {
     flexDirection: 'row',
-    gap: 12,
     alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
-  iconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+  calendarNavBtn: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  cardTextWrap: {
+  calendarTitle: {
+    fontSize: 17,
+    fontWeight: '700' as const,
+  },
+  weekdaysRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  weekdayCell: {
     flex: 1,
-    gap: 2,
+    alignItems: 'center',
+    paddingVertical: 4,
   },
-  cardLabel: {
+  weekdayText: {
     fontSize: 12,
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: 0.6,
+    fontWeight: '600' as const,
   },
-  cardValue: {
-    fontSize: 16,
-    fontWeight: '800' as const,
+  weekRow: {
+    flexDirection: 'row',
   },
-  pickerPanel: {
-    borderWidth: 1,
-    borderRadius: 18,
-    overflow: 'hidden',
-  },
-  timePickerPanel: {
-    borderWidth: 1,
-    borderRadius: 18,
-    padding: 20,
-    paddingTop: 20,
-  },
-  inlineDoneBtn: {
-    margin: 12,
-    height: 42,
-    borderRadius: 12,
+  dayCell: {
+    flex: 1,
+    aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    borderRadius: 8,
+    margin: 2,
   },
-  inlineDoneText: {
-    color: '#FFFFFF',
+  dayCellSelected: {
+    borderRadius: 8,
+  },
+  dayCellToday: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  dayText: {
     fontSize: 15,
-    fontWeight: '800' as const,
+    fontWeight: '500' as const,
   },
-  webGrid: {
-    gap: 20,
+  dayTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
   },
-  webField: {
-    gap: 8,
+  timeCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    marginBottom: 24,
   },
-  webTimePickerWrapper: {
-    marginTop: 8,
-  },
-  fieldLabel: {
+  timeLabel: {
     fontSize: 12,
     fontWeight: '700' as const,
     textTransform: 'uppercase' as const,
     letterSpacing: 0.6,
-  },
-  webInput: {
-    height: 50,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    fontSize: 16,
-    fontWeight: '700' as const,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginBottom: 12,
+    textAlign: 'center' as const,
   },
 });
