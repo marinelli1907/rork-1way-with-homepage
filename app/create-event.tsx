@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 
 import BottomSheetModal from '@/components/BottomSheetModal';
@@ -45,7 +45,9 @@ function firstParam(v: string | string[] | undefined): string | undefined {
 
 type DateTimeTarget = 'start' | 'end';
 
-const QUICK_HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+const HOURS_12 = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+const MINUTES_60 = Array.from({ length: 60 }, (_, i) => i);
+const ITEM_HEIGHT = 44;
 
 function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -324,6 +326,51 @@ export default function CreateEventScreen() {
 
   const currentTargetDate = activeTarget === 'start' ? startAt : endAt;
   const currentHourInfo = getSelectedHour(currentTargetDate);
+  const currentMinute = currentTargetDate.getMinutes();
+
+  const hourScrollRef = useRef<ScrollView>(null);
+  const minuteScrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    if (activeTarget) {
+      const targetDate = activeTarget === 'start' ? startAt : endAt;
+      const h = targetDate.getHours();
+      let hour12: number;
+      if (h === 0) hour12 = 12;
+      else if (h === 12) hour12 = 12;
+      else if (h > 12) hour12 = h - 12;
+      else hour12 = h;
+      
+      const hourIndex = HOURS_12.indexOf(hour12);
+      const minuteIndex = targetDate.getMinutes();
+      
+      setTimeout(() => {
+        hourScrollRef.current?.scrollTo({ y: hourIndex * ITEM_HEIGHT, animated: false });
+        minuteScrollRef.current?.scrollTo({ y: minuteIndex * ITEM_HEIGHT, animated: false });
+      }, 50);
+    }
+  }, [activeTarget, startAt, endAt]);
+
+  const handleHourScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = event.nativeEvent.contentOffset.y;
+    const index = Math.round(y / ITEM_HEIGHT);
+    const clampedIndex = Math.max(0, Math.min(index, HOURS_12.length - 1));
+    const hour = HOURS_12[clampedIndex];
+    
+    if (hour !== currentHourInfo.hour) {
+      handleHourSelect(hour, currentHourInfo.isPM);
+    }
+  }, [currentHourInfo, handleHourSelect]);
+
+  const handleMinuteScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = event.nativeEvent.contentOffset.y;
+    const index = Math.round(y / ITEM_HEIGHT);
+    const minute = Math.max(0, Math.min(index, 59));
+    
+    if (minute !== currentMinute) {
+      handleMinuteSelect(minute);
+    }
+  }, [currentMinute, handleMinuteSelect]);
 
   const submit = useCallback(async () => {
     console.log('[create-event] submit called', { mode, title: title.trim(), venue: venue.trim() });
@@ -574,53 +621,93 @@ export default function CreateEventScreen() {
 
             <View style={styles.timeSectionDivider} />
 
-            <View style={styles.amPmToggleRow}>
-              <Pressable
-                style={[styles.amPmBtn, !currentHourInfo.isPM && styles.amPmBtnActive]}
-                onPress={() => handleHourSelect(currentHourInfo.hour, false)}
-              >
-                <Text style={[styles.amPmText, !currentHourInfo.isPM && styles.amPmTextActive]}>AM</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.amPmBtn, currentHourInfo.isPM && styles.amPmBtnActive]}
-                onPress={() => handleHourSelect(currentHourInfo.hour, true)}
-              >
-                <Text style={[styles.amPmText, currentHourInfo.isPM && styles.amPmTextActive]}>PM</Text>
-              </Pressable>
-            </View>
-
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.hourScroll}>
-              <View style={styles.hourRow}>
-                {QUICK_HOURS.map((h) => {
-                  const isSelected = currentHourInfo.hour === h;
-                  return (
-                    <Pressable
-                      key={h}
-                      style={[styles.hourBtn, isSelected && styles.hourBtnSelected]}
-                      onPress={() => handleHourSelect(h, currentHourInfo.isPM)}
-                    >
-                      <Text style={[styles.hourText, isSelected && styles.hourTextSelected]}>{h}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </ScrollView>
-
-            <View style={styles.minuteRow}>
-              {[0, 15, 30, 45].map((m) => {
-                const isSelected = currentTargetDate.getMinutes() === m;
-                return (
-                  <Pressable
-                    key={m}
-                    style={[styles.minuteBtn, isSelected && styles.minuteBtnSelected]}
-                    onPress={() => handleMinuteSelect(m)}
+            <View style={styles.wheelPickerContainer}>
+              <View style={styles.wheelColumn}>
+                <Text style={styles.wheelLabel}>Hour</Text>
+                <View style={styles.wheelWrapper}>
+                  <View style={styles.wheelHighlight} />
+                  <ScrollView
+                    ref={hourScrollRef}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={ITEM_HEIGHT}
+                    decelerationRate="fast"
+                    onMomentumScrollEnd={handleHourScroll}
+                    contentContainerStyle={styles.wheelContent}
                   >
-                    <Text style={[styles.minuteText, isSelected && styles.minuteTextSelected]}>
-                      :{m.toString().padStart(2, '0')}
-                    </Text>
+                    {HOURS_12.map((h) => {
+                      const isSelected = currentHourInfo.hour === h;
+                      return (
+                        <Pressable
+                          key={h}
+                          style={styles.wheelItem}
+                          onPress={() => {
+                            handleHourSelect(h, currentHourInfo.isPM);
+                            const index = HOURS_12.indexOf(h);
+                            hourScrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
+                          }}
+                        >
+                          <Text style={[styles.wheelItemText, isSelected && styles.wheelItemTextSelected]}>
+                            {h}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              </View>
+
+              <Text style={styles.wheelSeparator}>:</Text>
+
+              <View style={styles.wheelColumn}>
+                <Text style={styles.wheelLabel}>Min</Text>
+                <View style={styles.wheelWrapper}>
+                  <View style={styles.wheelHighlight} />
+                  <ScrollView
+                    ref={minuteScrollRef}
+                    showsVerticalScrollIndicator={false}
+                    snapToInterval={ITEM_HEIGHT}
+                    decelerationRate="fast"
+                    onMomentumScrollEnd={handleMinuteScroll}
+                    contentContainerStyle={styles.wheelContent}
+                  >
+                    {MINUTES_60.map((m) => {
+                      const isSelected = currentMinute === m;
+                      return (
+                        <Pressable
+                          key={m}
+                          style={styles.wheelItem}
+                          onPress={() => {
+                            handleMinuteSelect(m);
+                            minuteScrollRef.current?.scrollTo({ y: m * ITEM_HEIGHT, animated: true });
+                          }}
+                        >
+                          <Text style={[styles.wheelItemText, isSelected && styles.wheelItemTextSelected]}>
+                            {m.toString().padStart(2, '0')}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              </View>
+
+              <View style={styles.amPmColumn}>
+                <Text style={styles.wheelLabel}>Period</Text>
+                <View style={styles.amPmVertical}>
+                  <Pressable
+                    style={[styles.amPmVerticalBtn, !currentHourInfo.isPM && styles.amPmVerticalBtnActive]}
+                    onPress={() => handleHourSelect(currentHourInfo.hour, false)}
+                  >
+                    <Text style={[styles.amPmVerticalText, !currentHourInfo.isPM && styles.amPmVerticalTextActive]}>AM</Text>
                   </Pressable>
-                );
-              })}
+                  <Pressable
+                    style={[styles.amPmVerticalBtn, currentHourInfo.isPM && styles.amPmVerticalBtnActive]}
+                    onPress={() => handleHourSelect(currentHourInfo.hour, true)}
+                  >
+                    <Text style={[styles.amPmVerticalText, currentHourInfo.isPM && styles.amPmVerticalTextActive]}>PM</Text>
+                  </Pressable>
+                </View>
+              </View>
             </View>
           </View>
         )}
@@ -791,81 +878,88 @@ const styles = StyleSheet.create({
     backgroundColor: '#E2E8F0',
     marginVertical: 16,
   },
-  amPmToggleRow: {
+  wheelPickerContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 10,
-    padding: 4,
-    marginBottom: 12,
-  },
-  amPmBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  amPmBtnActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  amPmText: {
-    fontSize: 14,
-    fontWeight: '700' as const,
-    color: '#64748B',
-  },
-  amPmTextActive: {
-    color: '#0F172A',
-  },
-  hourScroll: {
-    marginBottom: 12,
-  },
-  hourRow: {
-    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
     gap: 8,
   },
-  hourBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  wheelColumn: {
+    alignItems: 'center',
+  },
+  wheelLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: '#94A3B8',
+    marginBottom: 8,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  wheelWrapper: {
+    height: ITEM_HEIGHT * 3,
+    width: 70,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    overflow: 'hidden',
+    position: 'relative' as const,
+  },
+  wheelHighlight: {
+    position: 'absolute' as const,
+    top: ITEM_HEIGHT,
+    left: 4,
+    right: 4,
+    height: ITEM_HEIGHT,
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    zIndex: 0,
+  },
+  wheelContent: {
+    paddingVertical: ITEM_HEIGHT,
+  },
+  wheelItem: {
+    height: ITEM_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wheelItemText: {
+    fontSize: 20,
+    fontWeight: '600' as const,
+    color: '#64748B',
+  },
+  wheelItemTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700' as const,
+  },
+  wheelSeparator: {
+    fontSize: 28,
+    fontWeight: '700' as const,
+    color: '#0F172A',
+    marginTop: 68,
+  },
+  amPmColumn: {
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  amPmVertical: {
+    gap: 8,
+  },
+  amPmVerticalBtn: {
+    width: 56,
+    height: 48,
+    borderRadius: 10,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hourBtnSelected: {
+  amPmVerticalBtnActive: {
     backgroundColor: '#3B82F6',
   },
-  hourText: {
+  amPmVerticalText: {
     fontSize: 16,
-    fontWeight: '600' as const,
+    fontWeight: '700' as const,
     color: '#64748B',
   },
-  hourTextSelected: {
-    color: '#FFFFFF',
-  },
-  minuteRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  minuteBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-  },
-  minuteBtnSelected: {
-    backgroundColor: '#3B82F6',
-  },
-  minuteText: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#64748B',
-  },
-  minuteTextSelected: {
+  amPmVerticalTextActive: {
     color: '#FFFFFF',
   },
 });
