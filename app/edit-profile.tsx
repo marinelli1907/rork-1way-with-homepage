@@ -5,14 +5,12 @@ import {
   StyleSheet,
   TextInput,
   Pressable,
-  Image,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import BottomSheetModal from '@/components/BottomSheetModal';
 import { useProfiles } from '@/providers/ProfilesProvider';
-import { Car, Sparkles, Accessibility } from 'lucide-react-native';
+import { Accessibility } from 'lucide-react-native';
 
 const MOCK_USER = {
   name: 'Jordan Smith',
@@ -28,114 +26,14 @@ export default function EditProfileScreen() {
   const [name, setName] = useState(myProfile?.name || MOCK_USER.name);
   const [email, setEmail] = useState(myProfile?.email || MOCK_USER.email);
   const [phone, setPhone] = useState(myProfile?.phone || MOCK_USER.phone);
-  const [carMake, setCarMake] = useState(myProfile?.carMake || '');
-  const [carModel, setCarModel] = useState(myProfile?.carModel || '');
-  const [carYear, setCarYear] = useState(myProfile?.carYear || '');
-  const [carColor, setCarColor] = useState(myProfile?.carColor || '');
-  const [carImageUrl, setCarImageUrl] = useState(myProfile?.carImageUrl || '');
   const [isHandicap, setIsHandicap] = useState<boolean>(myProfile?.isHandicap ?? false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const isDirty =
     name !== (myProfile?.name || MOCK_USER.name) ||
     email !== (myProfile?.email || MOCK_USER.email) ||
     phone !== (myProfile?.phone || MOCK_USER.phone) ||
-    carMake !== (myProfile?.carMake || '') ||
-    carModel !== (myProfile?.carModel || '') ||
-    carYear !== (myProfile?.carYear || '') ||
-    carColor !== (myProfile?.carColor || '') ||
-    carImageUrl !== (myProfile?.carImageUrl || '') ||
     isHandicap !== (myProfile?.isHandicap ?? false);
-
-  const canGenerateCar = carMake && carModel && carYear && carColor;
-
-  const handleGenerateCarImage = async () => {
-    if (!canGenerateCar) {
-      Alert.alert(
-        'Missing Information',
-        'Please fill in all car details (make, model, year, and color) to generate an image.'
-      );
-      return;
-    }
-
-    setIsGenerating(true);
-    try {
-      console.log('[edit-profile] Generating car image', { carYear, carColor, carMake, carModel });
-
-      const prompt = `A high-quality, professional studio photograph of a ${carYear} ${carColor} ${carMake} ${carModel}. The car should be shown from a 3/4 front angle view, positioned on a clean white studio background. Perfect lighting, photorealistic, detailed, modern automotive photography style. The car should be clean and well-maintained.`;
-
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
-
-      const response = await fetch('https://toolkit.rork.com/images/generate/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({
-          prompt,
-          size: '1536x1024',
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      console.log('[edit-profile] image generate status', response.status);
-
-      const rawText = await response.text();
-      console.log('[edit-profile] image generate raw response (first 500 chars)', rawText.slice(0, 500));
-
-      if (!response.ok) {
-        throw new Error(rawText || `Server responded with status ${response.status}`);
-      }
-
-      let data: unknown = null;
-      try {
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch (e) {
-        console.error('[edit-profile] Failed to parse JSON', e);
-        throw new Error('Invalid JSON from server');
-      }
-
-      if (!data || typeof data !== 'object') {
-        throw new Error('Invalid response format from server');
-      }
-
-      const maybe = data as {
-        image?: { base64Data?: string; mimeType?: string; url?: string };
-        url?: string;
-      };
-
-      const base64Data = maybe.image?.base64Data;
-      const mimeType = maybe.image?.mimeType;
-      const url = maybe.image?.url ?? maybe.url;
-
-      if (base64Data && mimeType) {
-        const imageUri = `data:${mimeType};base64,${base64Data}`;
-        setCarImageUrl(imageUri);
-        Alert.alert('Success', 'Car image generated successfully!');
-        return;
-      }
-
-      if (url && typeof url === 'string') {
-        setCarImageUrl(url);
-        Alert.alert('Success', 'Car image generated successfully!');
-        return;
-      }
-
-      console.error('[edit-profile] Invalid response body', data);
-      throw new Error('Invalid response format from server');
-    } catch (error) {
-      console.error('[edit-profile] Failed to generate car image', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      Alert.alert('Generation Failed', `Could not generate car image: ${errorMessage}`);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -144,11 +42,6 @@ export default function EditProfileScreen() {
         name,
         email,
         phone,
-        carMake,
-        carModel,
-        carYear,
-        carColor,
-        carImageUrl,
         isHandicap,
       });
 
@@ -248,92 +141,7 @@ export default function EditProfileScreen() {
         </Pressable>
       </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Car size={20} color="#1E3A8A" strokeWidth={2} />
-          <Text style={styles.sectionTitle}>Vehicle Information</Text>
-        </View>
-        
-        <View style={styles.inputRow}>
-          <View style={[styles.inputGroup, styles.inputHalf]}>
-            <Text style={styles.label}>Make</Text>
-            <TextInput
-              style={styles.input}
-              value={carMake}
-              onChangeText={setCarMake}
-              placeholder="Toyota"
-              placeholderTextColor="#94A3B8"
-            />
-          </View>
 
-          <View style={[styles.inputGroup, styles.inputHalf]}>
-            <Text style={styles.label}>Model</Text>
-            <TextInput
-              style={styles.input}
-              value={carModel}
-              onChangeText={setCarModel}
-              placeholder="Camry"
-              placeholderTextColor="#94A3B8"
-            />
-          </View>
-        </View>
-
-        <View style={styles.inputRow}>
-          <View style={[styles.inputGroup, styles.inputHalf]}>
-            <Text style={styles.label}>Year</Text>
-            <TextInput
-              style={styles.input}
-              value={carYear}
-              onChangeText={setCarYear}
-              placeholder="2023"
-              placeholderTextColor="#94A3B8"
-              keyboardType="numeric"
-              maxLength={4}
-            />
-          </View>
-
-          <View style={[styles.inputGroup, styles.inputHalf]}>
-            <Text style={styles.label}>Color</Text>
-            <TextInput
-              style={styles.input}
-              value={carColor}
-              onChangeText={setCarColor}
-              placeholder="Silver"
-              placeholderTextColor="#94A3B8"
-            />
-          </View>
-        </View>
-
-        <Pressable
-          style={({ pressed }) => [
-            styles.generateButton,
-            pressed && styles.generateButtonPressed,
-            (!canGenerateCar || isGenerating) && styles.generateButtonDisabled,
-          ]}
-          onPress={handleGenerateCarImage}
-          disabled={!canGenerateCar || isGenerating}
-        >
-          {isGenerating ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <>
-              <Sparkles size={18} color="#FFFFFF" strokeWidth={2} />
-              <Text style={styles.generateButtonText}>Generate Car Image</Text>
-            </>
-          )}
-        </Pressable>
-
-        {carImageUrl ? (
-          <View style={styles.carImageContainer}>
-            <Text style={styles.carImageLabel}>Generated Image</Text>
-            <Image
-              source={{ uri: carImageUrl }}
-              style={styles.carImage}
-              resizeMode="cover"
-            />
-          </View>
-        ) : null}
-      </View>
     </BottomSheetModal>
   );
 }
@@ -420,12 +228,7 @@ const styles = StyleSheet.create({
   pillTextOff: {
     color: '#64748B',
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
+
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700' as const,
@@ -435,13 +238,7 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 16,
   },
-  inputRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  inputHalf: {
-    flex: 1,
-  },
+
   label: {
     fontSize: 14,
     fontWeight: '600' as const,
@@ -458,47 +255,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  generateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#8B5CF6',
-    borderRadius: 12,
-    paddingVertical: 14,
-    marginTop: 8,
-    shadowColor: '#8B5CF6',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  generateButtonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
-  },
-  generateButtonDisabled: {
-    backgroundColor: '#CBD5E1',
-    shadowOpacity: 0,
-  },
-  generateButtonText: {
-    fontSize: 15,
-    fontWeight: '700' as const,
-    color: '#FFFFFF',
-  },
-  carImageContainer: {
-    marginTop: 20,
-  },
-  carImageLabel: {
-    fontSize: 14,
-    fontWeight: '600' as const,
-    color: '#475569',
-    marginBottom: 8,
-  },
-  carImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-  },
+
 });
