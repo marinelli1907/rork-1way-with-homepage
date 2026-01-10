@@ -45,6 +45,8 @@ const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
 const ACCENT_COLOR = '#1E3A8A';
 const ASAP_COLOR = '#F59E0B';
 
+type PickerStep = 'date' | 'time';
+
 export function roundToNext30Minutes(date: Date): Date {
   const result = new Date(date);
   result.setSeconds(0, 0);
@@ -110,6 +112,7 @@ function ScrollColumn({ data, selectedIndex, onSelect, formatItem }: ScrollColum
   const isScrolling = useRef(false);
   const hasInitialized = useRef(false);
   const lastSelectedIndex = useRef(selectedIndex);
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!hasInitialized.current) {
@@ -131,12 +134,12 @@ function ScrollColumn({ data, selectedIndex, onSelect, formatItem }: ScrollColum
     }
   }, [selectedIndex]);
 
-  const handleScrollEnd = useCallback((event: { nativeEvent: { contentOffset: { y: number }; velocity?: { y: number } } }) => {
+  const handleScrollEnd = useCallback((event: { nativeEvent: { contentOffset: { y: number } } }) => {
     isScrolling.current = false;
     const y = event.nativeEvent.contentOffset.y;
     const index = Math.round(y / ITEM_HEIGHT);
     const clampedIndex = Math.max(0, Math.min(data.length - 1, index));
-    
+
     if (clampedIndex !== lastSelectedIndex.current) {
       lastSelectedIndex.current = clampedIndex;
       onSelect(clampedIndex);
@@ -165,12 +168,21 @@ function ScrollColumn({ data, selectedIndex, onSelect, formatItem }: ScrollColum
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
-        onScrollBeginDrag={handleScrollBegin}
+        onScrollBeginDrag={() => {
+          handleScrollBegin();
+          if (snapTimerRef.current) {
+            clearTimeout(snapTimerRef.current);
+            snapTimerRef.current = null;
+          }
+        }}
         onMomentumScrollEnd={handleScrollEnd}
         onScrollEndDrag={(e) => {
-          if (e.nativeEvent.velocity?.y === 0) {
-            handleScrollEnd(e);
+          if (snapTimerRef.current) {
+            clearTimeout(snapTimerRef.current);
           }
+          snapTimerRef.current = setTimeout(() => {
+            handleScrollEnd(e);
+          }, 60);
         }}
         contentContainerStyle={{
           paddingVertical: paddingItems * ITEM_HEIGHT,
@@ -349,42 +361,48 @@ interface TimePickerInlineProps {
 }
 
 function TimePickerInline({ value, onChange }: TimePickerInlineProps) {
-  const valueRef = useRef(value);
-  
+  const valueRef = useRef<Date>(value);
+
   useEffect(() => {
     valueRef.current = value;
   }, [value]);
 
-  const hour24 = value.getHours();
-  const minute = value.getMinutes();
-  const isPM = hour24 >= 12;
-  const hour12 = hour24 % 12 || 12;
+  const derived = useMemo(() => {
+    const hour24 = value.getHours();
+    const minute = value.getMinutes();
+    const isPM = hour24 >= 12;
+    const hour12 = hour24 % 12 || 12;
+    const roundedMinute = Math.round(minute / 5) * 5;
+    const normalizedMinute = roundedMinute >= 60 ? 0 : roundedMinute;
 
-  const roundedMinute = Math.round(minute / 5) * 5;
-  const minuteIndex = MINUTES.indexOf(roundedMinute >= 60 ? 0 : roundedMinute);
+    return {
+      hour12,
+      isPM,
+      minuteValue: normalizedMinute,
+    };
+  }, [value]);
 
-  const [localHourIndex, setLocalHourIndex] = useState(HOURS.indexOf(hour12));
-  const [localMinuteIndex, setLocalMinuteIndex] = useState(minuteIndex >= 0 ? minuteIndex : 0);
-  const [localPeriodIndex, setLocalPeriodIndex] = useState(isPM ? 1 : 0);
+  const [localHourIndex, setLocalHourIndex] = useState<number>(HOURS.indexOf(derived.hour12));
+  const [localMinuteIndex, setLocalMinuteIndex] = useState<number>(Math.max(0, MINUTES.indexOf(derived.minuteValue)));
+  const [localPeriodIndex, setLocalPeriodIndex] = useState<number>(derived.isPM ? 1 : 0);
 
-  const isUpdatingFromProps = useRef(false);
+  const isUpdatingFromProps = useRef<boolean>(false);
 
   useEffect(() => {
-    const newHourIndex = HOURS.indexOf(hour12);
-    const newMinuteIndex = MINUTES.indexOf(roundedMinute >= 60 ? 0 : roundedMinute);
-    const newPeriodIndex = isPM ? 1 : 0;
-    
-    if (localHourIndex !== newHourIndex || localMinuteIndex !== (newMinuteIndex >= 0 ? newMinuteIndex : 0) || localPeriodIndex !== newPeriodIndex) {
+    const newHourIndex = HOURS.indexOf(derived.hour12);
+    const newMinuteIndex = Math.max(0, MINUTES.indexOf(derived.minuteValue));
+    const newPeriodIndex = derived.isPM ? 1 : 0;
+
+    if (localHourIndex !== newHourIndex || localMinuteIndex !== newMinuteIndex || localPeriodIndex !== newPeriodIndex) {
       isUpdatingFromProps.current = true;
       setLocalHourIndex(newHourIndex);
-      setLocalMinuteIndex(newMinuteIndex >= 0 ? newMinuteIndex : 0);
+      setLocalMinuteIndex(newMinuteIndex);
       setLocalPeriodIndex(newPeriodIndex);
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         isUpdatingFromProps.current = false;
-      }, 100);
+      });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hour12, roundedMinute, isPM]);
+  }, [derived, localHourIndex, localMinuteIndex, localPeriodIndex]);
 
   const updateTime = useCallback((h12: number, min: number, pm: boolean) => {
     if (isUpdatingFromProps.current) return;
@@ -462,12 +480,14 @@ export default function UnifiedDateTimePicker({
   
   const [draftIsASAP, setDraftIsASAP] = useState<boolean>(initialIsASAP);
   const [draftDate, setDraftDate] = useState<Date>(defaultDate);
+  const [step, setStep] = useState<PickerStep>('date');
 
   useEffect(() => {
     if (!visible) return;
     console.log('[UnifiedDateTimePicker] open', { title, allowASAP, initialDate: initialDate?.toISOString() });
     setDraftIsASAP(initialIsASAP);
     setDraftDate(initialDate || getDefaultDateTime());
+    setStep('date');
   }, [visible, allowASAP, initialDate, initialIsASAP, title]);
 
   const handleDateSelect = useCallback((newDate: Date) => {
@@ -475,6 +495,7 @@ export default function UnifiedDateTimePicker({
     const updated = new Date(draftDate);
     updated.setFullYear(newDate.getFullYear(), newDate.getMonth(), newDate.getDate());
     setDraftDate(updated);
+    setStep('time');
   }, [draftDate]);
 
   const handleTimeChange = useCallback((newDate: Date) => {
@@ -540,7 +561,7 @@ export default function UnifiedDateTimePicker({
             </Pressable>
           </View>
 
-          <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.content} showsVerticalScrollIndicator={false} testID="unifiedPickerScroll">
             {allowASAP && (
               <View style={styles.asapRow}>
                 <Pressable
@@ -564,21 +585,40 @@ export default function UnifiedDateTimePicker({
               </View>
             )}
 
-            <View style={styles.calendarCard}>
-              <Calendar
-                selectedDate={draftDate}
-                minimumDate={minimumDate}
-                onSelectDate={handleDateSelect}
-              />
+            <View style={styles.stepToggleWrap} testID="unifiedPickerStepToggle">
+              <Pressable
+                onPress={() => setStep('date')}
+                style={[styles.stepPill, step === 'date' && styles.stepPillActive]}
+                testID="unifiedPickerStepDate"
+              >
+                <Text style={[styles.stepText, step === 'date' && styles.stepTextActive]}>Date</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => setStep('time')}
+                style={[styles.stepPill, step === 'time' && styles.stepPillActive]}
+                testID="unifiedPickerStepTime"
+              >
+                <Text style={[styles.stepText, step === 'time' && styles.stepTextActive]}>Time</Text>
+              </Pressable>
             </View>
 
-            <View style={styles.timeCard}>
-              <Text style={styles.timeLabel}>TIME</Text>
-              <TimePickerInline
-                value={draftDate}
-                onChange={handleTimeChange}
-              />
-            </View>
+            {step === 'date' ? (
+              <View style={styles.calendarCard} testID="unifiedPickerCalendarCard">
+                <Calendar
+                  selectedDate={draftDate}
+                  minimumDate={minimumDate}
+                  onSelectDate={handleDateSelect}
+                />
+              </View>
+            ) : (
+              <View style={styles.timeCard} testID="unifiedPickerTimeCard">
+                <Text style={styles.timeLabel}>TIME</Text>
+                <TimePickerInline
+                  value={draftDate}
+                  onChange={handleTimeChange}
+                />
+              </View>
+            )}
           </ScrollView>
         </SafeAreaView>
       </View>
@@ -645,6 +685,34 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 18,
+  },
+  stepToggleWrap: {
+    flexDirection: 'row',
+    alignSelf: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 999,
+    padding: 4,
+    gap: 6,
+    marginBottom: 14,
+  },
+  stepPill: {
+    minWidth: 96,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepPillActive: {
+    backgroundColor: '#FFFFFF',
+  },
+  stepText: {
+    fontSize: 14,
+    fontWeight: '800' as const,
+    color: '#E5E7EB',
+  },
+  stepTextActive: {
+    color: ACCENT_COLOR,
   },
   asapRow: {
     flexDirection: 'row',
