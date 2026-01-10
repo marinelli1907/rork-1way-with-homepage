@@ -523,13 +523,20 @@ export default function UnifiedDateTimePicker({
   return (
     <Modal
       visible={visible}
-      animationType="slide"
-      presentationStyle="fullScreen"
+      animationType="fade"
+      presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : 'fullScreen'}
       onRequestClose={onCancel}
-      transparent={false}
+      transparent
     >
-      <View style={styles.root}>
-        <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <View style={styles.backdropRoot} testID="unifiedPickerBackdropRoot">
+        <Pressable
+          style={styles.backdropPressable}
+          onPress={onCancel}
+          testID="unifiedPickerBackdrop"
+        />
+
+        <View style={styles.sheet} testID="unifiedPickerSheet">
+          <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
           <View style={styles.header}>
             <Pressable
               onPress={() => {
@@ -620,23 +627,36 @@ export default function UnifiedDateTimePicker({
               </View>
             )}
           </ScrollView>
-        </SafeAreaView>
+          </SafeAreaView>
+        </View>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
+  backdropRoot: {
     flex: 1,
+    backgroundColor: 'rgba(2,6,23,0.62)',
+    justifyContent: 'flex-end',
+  },
+  backdropPressable: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  sheet: {
     backgroundColor: ACCENT_COLOR,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    overflow: 'hidden',
+    minHeight: 520,
+    maxHeight: '92%',
   },
   safe: {
     flex: 1,
   },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 12,
     paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -684,7 +704,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
-    paddingTop: 18,
+    paddingTop: 16,
   },
   stepToggleWrap: {
     flexDirection: 'row',
