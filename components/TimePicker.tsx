@@ -13,6 +13,7 @@ interface TimePickerProps {
   value: Date;
   onChange: (date: Date) => void;
   accentColor?: string;
+  lightBackground?: boolean;
 }
 
 const ITEM_HEIGHT = 44;
@@ -33,9 +34,10 @@ interface ScrollColumnProps {
   onSelect: (index: number) => void;
   formatItem?: (item: number | string) => string;
   accentColor: string;
+  lightBackground?: boolean;
 }
 
-function ScrollColumn({ data, selectedIndex, onSelect, formatItem, accentColor }: ScrollColumnProps) {
+function ScrollColumn({ data, selectedIndex, onSelect, formatItem, accentColor, lightBackground }: ScrollColumnProps) {
   const scrollRef = useRef<ScrollView>(null);
   const isScrolling = useRef(false);
 
@@ -75,7 +77,7 @@ function ScrollColumn({ data, selectedIndex, onSelect, formatItem, accentColor }
 
   return (
     <View style={styles.columnContainer}>
-      <View style={[styles.selectionHighlight, { borderColor: accentColor }]} pointerEvents="none" />
+      <View style={[styles.selectionHighlight, { borderColor: accentColor, backgroundColor: lightBackground ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.05)' }]} pointerEvents="none" />
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -113,6 +115,7 @@ function ScrollColumn({ data, selectedIndex, onSelect, formatItem, accentColor }
               <Text
                 style={[
                   styles.itemText,
+                  lightBackground && styles.itemTextLight,
                   isSelected && [styles.itemTextSelected, { color: accentColor }],
                 ]}
               >
@@ -126,7 +129,7 @@ function ScrollColumn({ data, selectedIndex, onSelect, formatItem, accentColor }
   );
 }
 
-export default function TimePicker({ value, onChange, accentColor = '#3B82F6' }: TimePickerProps) {
+export default function TimePicker({ value, onChange, accentColor = '#3B82F6', lightBackground = false }: TimePickerProps) {
   const hour24 = value.getHours();
   const minute = value.getMinutes();
   const isPM = hour24 >= 12;
@@ -170,20 +173,23 @@ export default function TimePicker({ value, onChange, accentColor = '#3B82F6' }:
           selectedIndex={hourIndex}
           onSelect={handleHourChange}
           accentColor={accentColor}
+          lightBackground={lightBackground}
         />
-        <Text style={styles.separator}>:</Text>
+        <Text style={[styles.separator, lightBackground && styles.separatorLight]}>:</Text>
         <ScrollColumn
           data={MINUTES}
           selectedIndex={minuteIndex}
           onSelect={handleMinuteChange}
           formatItem={(m) => padZero(m as number)}
           accentColor={accentColor}
+          lightBackground={lightBackground}
         />
         <ScrollColumn
           data={PERIODS}
           selectedIndex={periodIndex}
           onSelect={handlePeriodChange}
           accentColor={accentColor}
+          lightBackground={lightBackground}
         />
       </View>
     </View>
@@ -233,10 +239,16 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700' as const,
   },
+  itemTextLight: {
+    color: '#9CA3AF',
+  },
   separator: {
     fontSize: 28,
     fontWeight: '600' as const,
     color: '#64748B',
     marginHorizontal: 4,
+  },
+  separatorLight: {
+    color: '#9CA3AF',
   },
 });

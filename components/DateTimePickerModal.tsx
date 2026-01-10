@@ -346,22 +346,23 @@ export default function DateTimePickerModal({
               </View>
             )}
 
-            <View style={[styles.calendarCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <View style={[styles.calendarCard, { backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.08)' }]}>
               <Calendar
                 selectedDate={draftDate}
                 onSelectDate={handleDateSelect}
                 accentColor={theme.accent}
-                textColor={theme.text}
-                subtextColor={theme.subtext}
+                textColor="#1F2937"
+                subtextColor="#6B7280"
               />
             </View>
 
-            <View style={[styles.timeCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <Text style={[styles.timeLabel, { color: theme.subtext }]}>Time</Text>
+            <View style={[styles.timeCard, { backgroundColor: '#FFFFFF', borderColor: 'rgba(0,0,0,0.08)' }]}>
+              <Text style={[styles.timeLabel, { color: '#6B7280' }]}>TIME</Text>
               <TimePicker
                 value={draftDate}
                 onChange={handleTimeChange}
                 accentColor={theme.accent}
+                lightBackground
               />
             </View>
           </ScrollView>
@@ -380,7 +381,7 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 6,
+    paddingTop: 16,
     paddingBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -468,7 +469,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: '#F3F4F6',
   },
   calendarTitle: {
     fontSize: 17,
@@ -503,7 +504,7 @@ const styles = StyleSheet.create({
   },
   dayCellToday: {
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(0,0,0,0.15)',
   },
   dayText: {
     fontSize: 15,
