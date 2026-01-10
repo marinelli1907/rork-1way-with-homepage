@@ -527,6 +527,7 @@ export default function UnifiedDateTimePicker({
       presentationStyle={Platform.OS === 'ios' ? 'overFullScreen' : 'fullScreen'}
       onRequestClose={onCancel}
       transparent
+      statusBarTranslucent
     >
       <View style={styles.backdropRoot} testID="unifiedPickerBackdropRoot">
         <Pressable
